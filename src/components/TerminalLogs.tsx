@@ -7,10 +7,13 @@ interface TerminalLogsProps {
 }
 
 export const TerminalLogs: React.FC<TerminalLogsProps> = ({ logs, onClear }) => {
-  const terminalEndRef = useRef<HTMLDivElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Прокручиваем только сам контейнер логов, а не всю страницу
+    // (scrollIntoView утягивал окно вниз при каждом новом логе).
+    const el = logContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [logs]);
 
   return (
@@ -31,7 +34,7 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({ logs, onClear }) => 
         </button>
       </div>
 
-      <div className="p-4 font-mono text-[10px] leading-relaxed max-h-40 overflow-y-auto space-y-1.5 text-[#e6e1e5] selection:bg-[#1DB954]/30 selection:text-white">
+      <div ref={logContainerRef} className="p-4 font-mono text-[10px] leading-relaxed max-h-40 overflow-y-auto space-y-1.5 text-[#e6e1e5] selection:bg-[#1DB954]/30 selection:text-white">
         {logs.length === 0 ? (
           <div className="text-neutral-600 italic py-2">Нет активных логов. Запустите обновление, чтобы увидеть поток.</div>
         ) : (
@@ -56,7 +59,6 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({ logs, onClear }) => 
             );
           })
         )}
-        <div ref={terminalEndRef} />
       </div>
 
       <div className="px-5 py-2 bg-neutral-900/20 border-t border-neutral-200/10 dark:border-white/5 flex items-center gap-2 text-[9px] text-neutral-500 dark:text-[#938f99]/80 font-mono">

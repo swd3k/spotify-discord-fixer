@@ -139,7 +139,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-tight text-neutral-800 dark:text-[#e6e1e5]">Spotify Discord Fixer</h1>
-              <p className="text-[10px] font-mono text-neutral-450 dark:text-[#938f99] font-medium">v1.2.0 • GeoHide Linker</p>
+              <p className="text-[10px] font-mono text-neutral-450 dark:text-[#938f99] font-medium">v{__APP_VERSION__} • GeoHide Linker</p>
             </div>
           </div>
 

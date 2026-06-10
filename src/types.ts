@@ -29,4 +29,6 @@ declare global {
   interface Window {
     api: FixerApi;
   }
+  // Версия приложения, подставляется Vite из package.json (см. vite.config.ts).
+  const __APP_VERSION__: string;
 }
