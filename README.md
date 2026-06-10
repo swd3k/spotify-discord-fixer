@@ -53,7 +53,7 @@ npm run dev:renderer   # дев-сервер интерфейса (Vite)
 - Исходный код — https://github.com/swd3k/spotify-discord-hosts
 
 ## Обрабатываемые домены
-
+```bash
 gew1-spclient.spotify.com
 login5.spotify.com
 spotify.com
@@ -63,6 +63,7 @@ accounts.spotify.com
 aet.spotify.com
 open.spotify.com
 spotifycdn.com
+```
 
 ## Отказ от ответственности
 
