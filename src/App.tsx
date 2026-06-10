@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle } from "lucide-react";
+import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle, Github, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { IPList } from "./components/IPList";
 import { HostsBlockPreview } from "./components/HostsBlockPreview";
@@ -126,7 +126,7 @@ export default function App() {
   const upCount = ips.filter((ip) => ip.status === "Up").length;
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-black immersive-bg-light dark:immersive-bg-dark text-neutral-850 dark:text-neutral-100 flex flex-col items-center justify-center p-4 select-none selection:bg-[#1ED760]/30 selection:text-[#19B850] transition-all duration-300 relative overflow-x-hidden">
+    <div className="min-h-screen bg-white/60 dark:bg-[#0c0c0c]/55 backdrop-blur-sm text-neutral-850 dark:text-neutral-100 flex flex-col items-center justify-center p-4 select-none selection:bg-[#1ED760]/30 selection:text-[#19B850] transition-all duration-300 relative overflow-x-hidden">
       <div className="absolute top-0 left-0 right-0 h-[300px] bg-gradient-to-b from-[#1DB954]/5 to-transparent pointer-events-none blur-3xl rounded-full opacity-60 dark:opacity-30"></div>
 
       <main className="w-full max-w-lg bg-white dark:bg-[#1c1b1f] rounded-[28px] border border-neutral-200 dark:border-white/10 shadow-2xl overflow-hidden relative z-10 duration-250">
@@ -143,10 +143,19 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <a
+              href="https://github.com/swd3k/spotify-discord-hosts-fixer"
+              target="_blank"
+              rel="noreferrer"
+              className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-lg transition-all text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-white cursor-pointer"
+              title="Открыть страницу проекта на GitHub"
+            >
+              <Github size={14} />
+            </a>
             <button
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-850 rounded-lg transition-all text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-pointer"
+              className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-lg transition-all text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-white cursor-pointer"
               title="Переключить тему"
             >
               {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
@@ -219,6 +228,16 @@ export default function App() {
             <p className="leading-relaxed">
               Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
             </p>
+            <a
+              href="https://github.com/swd3k/spotify-discord-hosts-fixer"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] font-semibold transition-colors mt-1"
+            >
+              <Github size={12} />
+              Помощь и исходный код на GitHub
+              <ExternalLink size={11} />
+            </a>
           </div>
         </div>
 

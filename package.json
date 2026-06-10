@@ -1,7 +1,7 @@
 {
   "name": "spotify-discord-hosts-fixer",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Неофициальная программа для управления записями hosts (домены Spotify -> прокси GeoHide), чтобы восстановить синхронизацию презенса Spotify в Discord.",
   "author": "",
   "license": "MIT",
@@ -10,7 +10,8 @@
     "dev:renderer": "vite",
     "build:renderer": "vite build",
     "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --target=node18 --format=cjs --external:electron --external:sudo-prompt --outdir=dist/electron",
-    "build": "npm run build:renderer && npm run build:electron",
+    "copy:assets": "node -e \"const fs=require('fs');fs.copyFileSync('build/tray.png','dist/electron/tray.png');fs.copyFileSync('build/icon.png','dist/electron/icon.png');\"",
+    "build": "npm run build:renderer && npm run build:electron && npm run copy:assets",
     "dist": "npm run build && electron-builder --win --publish never",
     "lint": "tsc --noEmit"
   },
@@ -41,6 +42,7 @@
     "directories": { "output": "release", "buildResources": "build" },
     "win": {
       "target": ["nsis", "portable"],
+      "icon": "build/icon.ico",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {

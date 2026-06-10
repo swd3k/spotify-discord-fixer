@@ -10,11 +10,25 @@
   --color-primary-green: #1ED760;
   --color-dark-surface: #1c1b1f;
   --color-dark-container: #333333;
+  /* Промежуточные оттенки, которые использует разметка. В Tailwind v4 таких
+     классов по умолчанию нет (neutral идёт шагами 100/200/300...), поэтому
+     раньше bg-neutral-850, border-neutral-150 и т.п. молча игнорировались —
+     отсюда «съеденные» рамки, фоны и невидимая иконка темы при наведении. */
+  --color-neutral-150: #ededed;
+  --color-neutral-250: #dadada;
+  --color-neutral-450: #8a8a8a;
+  --color-neutral-750: #333333;
+  --color-neutral-850: #1f1f1f;
+  --color-rose-450: #f65a72;
   --font-sans: "Inter", "SF Pro Text", -apple-system, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
+  /* Прозрачный корень, чтобы под окном был виден системный acrylic-фон. */
+  html, body, #root {
+    background-color: transparent;
+  }
   body {
     @apply antialiased font-sans transition-colors duration-350;
   }
