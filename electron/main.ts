@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import { getIps, getStatus, applyHosts, removeHosts, buildBlock, getActiveBlock, pingIp, type DomainMode } from "./hosts";
@@ -135,17 +135,57 @@ function createTray() {
   tray.on("click", () => toggleWindow());
 }
 
+// Проблемы обновления невидимы для пользователя, поэтому пишем их в файл.
+function logUpdater(line: string) {
+  try {
+    fs.appendFileSync(path.join(app.getPath("userData"), "updater.log"), `[${new Date().toISOString()}] ${line}\n`);
+  } catch {
+    // Не удалось записать лог — не критично.
+  }
+}
+
 // Автопроверка обновлений через GitHub Releases (только для установленной версии;
-// portable-сборка не обновляется сама — ошибки глушим).
+// portable-сборка не обновляется сама). Когда обновление скачано — явный диалог,
+// а не системное уведомление, которое легко не заметить.
 function setupAutoUpdater() {
   if (!app.isPackaged) return;
+  let autoUpdater;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { autoUpdater } = require("electron-updater");
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    ({ autoUpdater } = require("electron-updater"));
   } catch {
     // electron-updater недоступен (например, в dev-сборке) — пропускаем.
+    return;
   }
+
+  autoUpdater.on("error", (e: Error) => logUpdater(`error: ${e?.message || e}`));
+  autoUpdater.on("update-available", (info: { version?: string }) => logUpdater(`update-available: ${info?.version}`));
+  autoUpdater.on("update-not-available", () => logUpdater("update-not-available"));
+  autoUpdater.on("update-downloaded", (info: { version?: string }) => {
+    logUpdater(`update-downloaded: ${info?.version}`);
+    const updater = autoUpdater;
+    dialog
+      .showMessageBox({
+        type: "info",
+        title: "Доступно обновление",
+        message: `Скачана новая версия ${info?.version || ""}.`.trim(),
+        detail: "Установить сейчас? Программа перезапустится. Если выбрать «Позже», обновление установится при выходе из программы.",
+        buttons: ["Установить и перезапустить", "Позже"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          isQuitting = true;
+          updater.quitAndInstall();
+        }
+      });
+  });
+
+  const check = () => autoUpdater.checkForUpdates().catch((e: Error) => logUpdater(`check failed: ${e?.message || e}`));
+  check();
+  // Приложение живёт в трее неделями — перепроверяем периодически, а не только на старте.
+  setInterval(check, 4 * 60 * 60 * 1000);
 }
 
 const normalizeMode = (mode: unknown): DomainMode => (mode === "minimal" ? "minimal" : "full");
@@ -179,6 +219,8 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    // Нужен для корректных уведомлений и группировки в панели задач Windows.
+    app.setAppUserModelId("com.geohide.spotify-discord-hosts-fixer");
     // Убираем стандартное системное меню (File/Edit/View/Window/Help).
     Menu.setApplicationMenu(null);
     createWindow(!startHidden);
