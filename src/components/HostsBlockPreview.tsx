@@ -1,28 +1,47 @@
 import React, { useState, useEffect } from "react";
-import { Copy, Check, Code } from "lucide-react";
-import { IpRecord } from "../types";
+import { Copy, Check, Code, FileCheck } from "lucide-react";
+import { IpRecord, DomainMode } from "../types";
 
 interface Props {
   activeIps: IpRecord[];
+  mode: DomainMode;
+  hostsActive: boolean;
   addLog: (msg: string) => void;
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
 }
 
-export const HostsBlockPreview: React.FC<Props> = ({ activeIps, addLog, showToast }) => {
+export const HostsBlockPreview: React.FC<Props> = ({ activeIps, mode, hostsActive, addLog, showToast }) => {
   const [copied, setCopied] = useState(false);
   const [blockText, setBlockText] = useState("");
+  const [installedText, setInstalledText] = useState("");
 
+  // Узлы уже отсортированы по задержке; блок строится для одного лучшего.
   const ips = activeIps.filter((ip) => ip.status === "Up").map((ip) => ip.ip);
 
   useEffect(() => {
     let cancelled = false;
-    window.api.getBlockText(ips).then((text) => {
+    window.api.getBlockText(ips, mode).then((text) => {
       if (!cancelled) setBlockText(text);
     });
     return () => {
       cancelled = true;
     };
-  }, [ips.join(",")]);
+  }, [ips.join(","), mode]);
+
+  // Реальный установленный блок из файла hosts (если перенаправления активны).
+  useEffect(() => {
+    let cancelled = false;
+    if (!hostsActive) {
+      setInstalledText("");
+      return;
+    }
+    window.api.getActiveBlock().then((block) => {
+      if (!cancelled) setInstalledText(block?.text || "");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hostsActive]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(blockText);
@@ -40,7 +59,7 @@ export const HostsBlockPreview: React.FC<Props> = ({ activeIps, addLog, showToas
       </h3>
 
       <div className="text-xs text-neutral-500 dark:text-[#938f99] leading-relaxed mb-3">
-        Эти строки будут добавлены в системный файл hosts при нажатии «Обновить и применить». Программа сделает резервную копию и потребует прав администратора.
+        Эти строки будут добавлены в системный файл hosts при нажатии «Обновить и применить» (один лучший узел на все домены). Программа сделает резервную копию и потребует прав администратора.
       </div>
 
       <div className="relative">
@@ -55,6 +74,18 @@ export const HostsBlockPreview: React.FC<Props> = ({ activeIps, addLog, showToas
           {blockText || "# Нет активных IP для предпросмотра."}
         </pre>
       </div>
+
+      {installedText && (
+        <>
+          <h3 className="text-xs uppercase font-extrabold tracking-wider text-neutral-500 dark:text-[#938f99] flex items-center gap-2 my-4 border-b border-neutral-150 dark:border-white/5 pb-2.5">
+            <FileCheck size={14} className="text-[#1DB954]" />
+            Сейчас установлено в hosts
+          </h3>
+          <pre className="text-[9px] font-mono bg-[#0c0c0c] text-[#e6e1e5]/80 p-4 rounded-2xl border border-neutral-850 dark:border-white/5 overflow-y-auto max-h-44 leading-relaxed whitespace-pre select-all">
+            {installedText}
+          </pre>
+        </>
+      )}
     </div>
   );
 };

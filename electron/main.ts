@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
-import { getIps, getStatus, applyHosts, removeHosts, buildBlock } from "./hosts";
+import fs from "node:fs";
+import { getIps, getStatus, applyHosts, removeHosts, buildBlock, getActiveBlock, pingIp, type DomainMode } from "./hosts";
 
 const isDev = !app.isPackaged && process.env.VITE_DEV_SERVER_URL;
 
@@ -8,13 +9,50 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
+// При автозапуске стартуем свёрнутыми в трей.
+const startHidden = process.argv.includes("--hidden");
+
 // Ассеты (иконки) копируются в dist/electron при сборке — см. скрипт copy:assets.
 const assetPath = (file: string) => path.join(__dirname, file);
 
-function createWindow() {
+// Размер и позиция окна сохраняются между запусками.
+interface WindowState {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+}
+
+const windowStatePath = () => path.join(app.getPath("userData"), "window-state.json");
+
+function loadWindowState(): WindowState {
+  try {
+    const saved = JSON.parse(fs.readFileSync(windowStatePath(), "utf-8"));
+    if (typeof saved.width === "number" && typeof saved.height === "number") {
+      return saved;
+    }
+  } catch {
+    // Нет сохранённого состояния — используем размеры по умолчанию.
+  }
+  return { width: 560, height: 880 };
+}
+
+function saveWindowState(win: BrowserWindow) {
+  try {
+    if (win.isMinimized() || win.isMaximized()) return;
+    fs.writeFileSync(windowStatePath(), JSON.stringify(win.getBounds()), "utf-8");
+  } catch {
+    // Не удалось сохранить — не критично.
+  }
+}
+
+function createWindow(showOnReady = true) {
+  const state = loadWindowState();
   const win = new BrowserWindow({
-    width: 560,
-    height: 880,
+    width: state.width,
+    height: state.height,
+    x: state.x,
+    y: state.y,
     minWidth: 540,
     minHeight: 700,
     resizable: true,
@@ -44,10 +82,13 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  win.once("ready-to-show", () => win.show());
+  if (showOnReady) {
+    win.once("ready-to-show", () => win.show());
+  }
 
   // Закрытие окна сворачивает в трей, а не завершает программу.
   win.on("close", (e) => {
+    saveWindowState(win);
     if (!isQuitting) {
       e.preventDefault();
       win.hide();
@@ -94,12 +135,38 @@ function createTray() {
   tray.on("click", () => toggleWindow());
 }
 
+// Автопроверка обновлений через GitHub Releases (только для установленной версии;
+// portable-сборка не обновляется сама — ошибки глушим).
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { autoUpdater } = require("electron-updater");
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+  } catch {
+    // electron-updater недоступен (например, в dev-сборке) — пропускаем.
+  }
+}
+
+const normalizeMode = (mode: unknown): DomainMode => (mode === "minimal" ? "minimal" : "full");
+
 // IPC: данные и операции
 ipcMain.handle("get-ips", async () => getIps());
 ipcMain.handle("get-status", async () => getStatus());
-ipcMain.handle("get-block-text", async (_e, ips: string[]) => buildBlock(ips || []));
-ipcMain.handle("apply", async (_e, ips: string[]) => applyHosts(ips || []));
+ipcMain.handle("get-active-block", async () => getActiveBlock());
+ipcMain.handle("ping-ip", async (_e, ip: string) => pingIp(String(ip || "")));
+ipcMain.handle("get-block-text", async (_e, ips: string[], mode?: string) => buildBlock(ips || [], normalizeMode(mode)));
+ipcMain.handle("apply", async (_e, ips: string[], mode?: string) => applyHosts(ips || [], normalizeMode(mode)));
 ipcMain.handle("remove", async () => removeHosts());
+
+// IPC: автозапуск вместе с системой (свёрнуто в трей).
+// На Windows args нужно передавать и при чтении, иначе запись в реестре не сматчится.
+const AUTOSTART_ARGS = ["--hidden"];
+ipcMain.handle("get-autostart", () => app.getLoginItemSettings({ args: AUTOSTART_ARGS }).openAtLogin);
+ipcMain.handle("set-autostart", (_e, enabled: boolean) => {
+  app.setLoginItemSettings({ openAtLogin: Boolean(enabled), args: AUTOSTART_ARGS });
+  return app.getLoginItemSettings({ args: AUTOSTART_ARGS }).openAtLogin;
+});
 
 // Один экземпляр приложения: повторный запуск разворачивает уже открытое окно.
 const gotLock = app.requestSingleInstanceLock();
@@ -114,8 +181,9 @@ if (!gotLock) {
   app.whenReady().then(() => {
     // Убираем стандартное системное меню (File/Edit/View/Window/Help).
     Menu.setApplicationMenu(null);
-    createWindow();
+    createWindow(!startHidden);
     createTray();
+    setupAutoUpdater();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

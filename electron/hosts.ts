@@ -5,32 +5,23 @@ import path from "node:path";
 import fs from "node:fs";
 import { promises as fsp } from "node:fs";
 import sudo from "sudo-prompt";
+import {
+  START_MARKER,
+  END_MARKER,
+  IPV4_RE,
+  buildBlock,
+  domainsForMode,
+  extractBlock,
+  type DomainMode,
+  type IpRecord,
+  type ParsedBlock,
+} from "../shared/hostsBlock";
 
-export const START_MARKER = "#spotify-discord-hosts";
-export const END_MARKER = "#end-spotify-discord-hosts";
-
-// Домены Spotify, которые перенаправляются на прокси-узлы GeoHide.
-export const SPOTIFY_DOMAINS = [
-  "api.spotify.com",
-  "login5.spotify.com",
-  "encore.scdn.co",
-  "gew1-spclient.spotify.com",
-  "spclient.wg.spotify.com",
-  "api-partner.spotify.com",
-  "aet.spotify.com",
-  "www.spotify.com",
-  "accounts.spotify.com",
-  "open.spotify.com",
-  "accounts.scdn.co",
-  "gew1-dealer.spotify.com",
-  "open-exp.spotifycdn.com",
-  "www-growth.scdn.co",
-];
+export { START_MARKER, END_MARKER, SPOTIFY_DOMAINS, buildBlock } from "../shared/hostsBlock";
+export type { DomainMode, IpRecord, ParsedBlock } from "../shared/hostsBlock";
 
 // Резервные адреса на случай, если резолв geohide.ru не сработал.
 const FALLBACK_IPS = ["37.230.192.51", "45.155.204.190", "185.162.248.51"];
-
-const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
 export function hostsPath(): string {
   if (process.platform === "win32") {
@@ -59,11 +50,10 @@ function tcpPing(ip: string, port = 443, timeout = 3000): Promise<number | null>
   });
 }
 
-export interface IpRecord {
-  ip: string;
-  status: "Up" | "Down";
-  provider: string;
-  latency?: number;
+// Точечная проверка одного узла (для кнопки «Проверить» и периодической перепроверки).
+export async function pingIp(ip: string): Promise<number | null> {
+  if (!IPV4_RE.test(ip)) return null;
+  return tcpPing(ip);
 }
 
 // Получаем список IP: резолвим geohide.ru, добавляем резерв, дедуплицируем, проверяем доступность.
@@ -89,21 +79,12 @@ export async function getIps(): Promise<IpRecord[]> {
     }),
   );
 
-  // Доступные узлы — вперёд.
-  records.sort((a, b) => (a.status === b.status ? 0 : a.status === "Up" ? -1 : 1));
+  // Доступные узлы — вперёд, среди доступных — с наименьшей задержкой.
+  records.sort((a, b) => {
+    if (a.status !== b.status) return a.status === "Up" ? -1 : 1;
+    return (a.latency ?? Infinity) - (b.latency ?? Infinity);
+  });
   return records;
-}
-
-export function buildBlock(ips: string[]): string {
-  const valid = ips.filter((ip) => IPV4_RE.test(ip));
-  const lines = [START_MARKER];
-  for (const ip of valid) {
-    for (const domain of SPOTIFY_DOMAINS) {
-      lines.push(`${ip} ${domain}`);
-    }
-  }
-  lines.push(END_MARKER);
-  return lines.join("\n");
 }
 
 // Статус читаем без повышения прав (hosts обычно доступен на чтение).
@@ -111,6 +92,16 @@ export async function getStatus(): Promise<boolean | null> {
   try {
     const content = await fsp.readFile(hostsPath(), "utf-8");
     return content.includes(START_MARKER);
+  } catch {
+    return null;
+  }
+}
+
+// Текущий управляемый блок из реального файла hosts (для отображения в приложении).
+export async function getActiveBlock(): Promise<ParsedBlock | null> {
+  try {
+    const content = await fsp.readFile(hostsPath(), "utf-8");
+    return extractBlock(content);
   } catch {
     return null;
   }
@@ -176,7 +167,7 @@ function runElevated(command: string): Promise<string> {
   });
 }
 
-async function runHostsAction(action: "apply" | "remove", ips: string[] = []): Promise<void> {
+async function runHostsAction(action: "apply" | "remove", block = ""): Promise<void> {
   const tmp = os.tmpdir();
   const isWin = process.platform === "win32";
   const scriptPath = path.join(tmp, isWin ? "spf_hosts.ps1" : "spf_hosts.sh");
@@ -184,7 +175,7 @@ async function runHostsAction(action: "apply" | "remove", ips: string[] = []): P
 
   fs.writeFileSync(scriptPath, isWin ? WIN_SCRIPT : UNIX_SCRIPT, "utf-8");
   if (action === "apply") {
-    fs.writeFileSync(blockPath, buildBlock(ips), "utf-8");
+    fs.writeFileSync(blockPath, block, "utf-8");
   }
 
   let command: string;
@@ -199,16 +190,34 @@ async function runHostsAction(action: "apply" | "remove", ips: string[] = []): P
   await runElevated(command);
 }
 
-export async function applyHosts(ips: string[]): Promise<{ success: boolean; message: string }> {
-  const valid = ips.filter((ip) => IPV4_RE.test(ip));
-  if (valid.length === 0) {
+// Проверка после применения: резолвим домен через системный резолвер
+// (он читает hosts) и сверяем с записанным IP.
+async function verifyRedirect(domain: string, expectedIp: string): Promise<boolean> {
+  try {
+    const { address } = await dns.lookup(domain, { family: 4 });
+    return address === expectedIp;
+  } catch {
+    return false;
+  }
+}
+
+export async function applyHosts(ips: string[], mode: DomainMode = "full"): Promise<{ success: boolean; message: string }> {
+  const ip = ips.find((candidate) => IPV4_RE.test(candidate));
+  if (!ip) {
     return { success: false, message: "Нет валидных IP для применения." };
   }
+  const domains = domainsForMode(mode);
   try {
-    await runHostsAction("apply", valid);
+    await runHostsAction("apply", buildBlock([ip], mode));
+
+    const verified = await verifyRedirect(domains[0], ip);
+    const verifyNote = verified
+      ? `Проверка: ${domains[0]} → ${ip}, перенаправление работает.`
+      : `Внимание: проверка ${domains[0]} не подтвердила перенаправление (возможно, нужен сброс кэша DNS).`;
+    const modeNote = mode === "minimal" ? " (минимальный режим, без доменов авторизации)" : "";
     return {
       success: true,
-      message: `Применено: ${valid.length} IP × ${SPOTIFY_DOMAINS.length} доменов. Перезапустите Discord и Spotify.`,
+      message: `Применён узел ${ip} для ${domains.length} доменов${modeNote}. ${verifyNote} Перезапустите Discord и Spotify.`,
     };
   } catch (e: any) {
     return { success: false, message: e?.message || "Не удалось изменить hosts (отменено или нет прав)." };

@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle, Github, ExternalLink } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle, Github, ExternalLink, Settings2, ShieldCheck, Power, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { IPList } from "./components/IPList";
 import logoUrl from "./assets/logo.png?inline";
 import { HostsBlockPreview } from "./components/HostsBlockPreview";
 import { TerminalLogs } from "./components/TerminalLogs";
-import { IpRecord, ToastMessage } from "./types";
+import { IpRecord, ToastMessage, DomainMode, ActiveBlock } from "./types";
+import { pickBestIp } from "../shared/hostsBlock";
+
+const CONSENT_KEY = "spf_consent_v1";
 
 export default function App() {
   const [ips, setIps] = useState<IpRecord[]>([]);
@@ -13,6 +16,14 @@ export default function App() {
   const [isApplying, setIsApplying] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [hostsActive, setHostsActive] = useState(false);
+  const [activeBlock, setActiveBlock] = useState<ActiveBlock | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
+
+  // "minimal" — без доменов авторизации (accounts/login5): логин не идёт через прокси.
+  const [mode, setMode] = useState<DomainMode>(() =>
+    localStorage.getItem("spf_mode") === "minimal" ? "minimal" : "full",
+  );
+  const [autostart, setAutostart] = useState(false);
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("spf_theme");
@@ -22,6 +33,9 @@ export default function App() {
 
   const [logs, setLogs] = useState<string[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Чтобы предупреждение «узел отвалился» не сыпалось каждые 90 секунд.
+  const warnedDownRef = useRef(false);
 
   const showToast = (message: string, type: ToastMessage["type"] = "success") => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -44,10 +58,46 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    localStorage.setItem("spf_mode", mode);
+  }, [mode]);
+
+  useEffect(() => {
     addLog("[SYSTEM] Spotify Discord Hosts Fixer запущен.", "info");
     refreshStatus();
     fetchIps();
+    window.api.getAutostart().then(setAutostart).catch(() => {});
   }, []);
+
+  // Периодическая перепроверка активного узла: если он отвалился — предупреждаем.
+  useEffect(() => {
+    if (!hostsActive) {
+      warnedDownRef.current = false;
+      return;
+    }
+    const check = async () => {
+      try {
+        const block = await window.api.getActiveBlock();
+        if (!block?.ip) return;
+        const latency = await window.api.pingIp(block.ip);
+        if (latency === null) {
+          if (!warnedDownRef.current) {
+            warnedDownRef.current = true;
+            addLog(`[MONITOR] Активный узел ${block.ip} перестал отвечать. Обновите список и примените заново.`, "warn");
+            showToast(`Узел ${block.ip} не отвечает — выберите другой`, "warning");
+          }
+        } else {
+          if (warnedDownRef.current) {
+            addLog(`[MONITOR] Узел ${block.ip} снова в сети (${latency} мс).`, "success");
+          }
+          warnedDownRef.current = false;
+        }
+      } catch {
+        // Сетевые сбои проверки не считаем поводом для предупреждения.
+      }
+    };
+    const id = setInterval(check, 90_000);
+    return () => clearInterval(id);
+  }, [hostsActive]);
 
   const refreshStatus = async () => {
     const active = await window.api.getStatus();
@@ -56,6 +106,7 @@ export default function App() {
       return;
     }
     setHostsActive(active);
+    setActiveBlock(active ? await window.api.getActiveBlock() : null);
     addLog(
       active
         ? "[SYSTEM] Обнаружен активный блок #spotify-discord-hosts."
@@ -81,14 +132,26 @@ export default function App() {
     }
   };
 
-  const handleApplyFix = async () => {
+  const handleApplyFix = () => {
+    if (!localStorage.getItem(CONSENT_KEY)) {
+      setConsentOpen(true);
+      return;
+    }
+    void doApply();
+  };
+
+  const doApply = async () => {
     setIsApplying(true);
     addLog("[SYSTEM] Запрос прав администратора для изменения hosts...", "info");
-    const activeIps = ips.filter((ip) => ip.status === "Up").map((ip) => ip.ip);
+    // Применяется один лучший узел (с наименьшей задержкой) — система
+    // всё равно использует только первую запись hosts для домена.
+    const best = pickBestIp(ips);
     try {
-      const res = await window.api.apply(activeIps);
+      const res = await window.api.apply(best ? [best] : [], mode);
       if (res.success) {
         setHostsActive(true);
+        setActiveBlock(await window.api.getActiveBlock());
+        warnedDownRef.current = false;
         addLog(`[SUCCESS] ${res.message}`, "success");
         showToast("Файл hosts успешно обновлён!", "success");
       } else {
@@ -103,6 +166,12 @@ export default function App() {
     }
   };
 
+  const handleConsentAccept = () => {
+    localStorage.setItem(CONSENT_KEY, "1");
+    setConsentOpen(false);
+    void doApply();
+  };
+
   const handleRemoveFix = async () => {
     setIsRemoving(true);
     addLog("[SYSTEM] Запрос прав администратора для очистки hosts...", "info");
@@ -110,6 +179,7 @@ export default function App() {
       const res = await window.api.remove();
       if (res.success) {
         setHostsActive(false);
+        setActiveBlock(null);
         addLog(`[SUCCESS] ${res.message}`, "success");
         showToast("Записи hosts удалены", "info");
       } else {
@@ -121,6 +191,16 @@ export default function App() {
       showToast("Ошибка при очистке hosts.", "error");
     } finally {
       setIsRemoving(false);
+    }
+  };
+
+  const handleAutostartToggle = async () => {
+    try {
+      const enabled = await window.api.setAutostart(!autostart);
+      setAutostart(enabled);
+      addLog(`[SYSTEM] Автозапуск ${enabled ? "включён (свёрнуто в трей)" : "выключен"}.`, "info");
+    } catch {
+      showToast("Не удалось изменить автозапуск.", "error");
     }
   };
 
@@ -177,7 +257,9 @@ export default function App() {
               </div>
               <p className="text-xs text-neutral-300/90 leading-relaxed font-medium">
                 {hostsActive
-                  ? `Hosts настроен через ${upCount} активных прокси-узлов GeoHide`
+                  ? activeBlock?.ip
+                    ? `Hosts перенаправляет ${activeBlock.domains.length} доменов на узел ${activeBlock.ip}`
+                    : "Hosts настроен через прокси-узел GeoHide"
                   : "Запросы к Spotify идут через стандартный DNS. Примените перенаправления, чтобы восстановить синхронизацию презенса в Discord."}
               </p>
             </div>
@@ -211,8 +293,53 @@ export default function App() {
             </button>
           </div>
 
+          <div className="bg-neutral-50 dark:bg-[#1c1b1f] border border-neutral-200/80 dark:border-white/10 rounded-[24px] p-5 transition-all duration-300 shadow-md">
+            <h3 className="text-xs uppercase font-extrabold tracking-wider text-neutral-500 dark:text-[#938f99] flex items-center gap-2 mb-4 border-b border-neutral-150 dark:border-white/5 pb-2.5">
+              <Settings2 size={14} className="text-[#1DB954]" />
+              Настройки
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <ShieldCheck size={15} className="text-[#1DB954] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-800 dark:text-[#e6e1e5]">Минимальный режим</p>
+                    <p className="text-[10px] text-neutral-450 dark:text-[#938f99] leading-relaxed">
+                      Не перенаправлять домены авторизации (accounts, login5) — логин в Spotify не пойдёт через прокси.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMode(mode === "minimal" ? "full" : "minimal")}
+                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer ${mode === "minimal" ? "bg-[#1DB954]" : "bg-neutral-300 dark:bg-neutral-700"}`}
+                  title="Переключить минимальный режим"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${mode === "minimal" ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <Power size={15} className="text-[#1DB954] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-800 dark:text-[#e6e1e5]">Запускать вместе с Windows</p>
+                    <p className="text-[10px] text-neutral-450 dark:text-[#938f99] leading-relaxed">
+                      Программа стартует свёрнутой в трей при входе в систему.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleAutostartToggle}
+                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer ${autostart ? "bg-[#1DB954]" : "bg-neutral-300 dark:bg-neutral-700"}`}
+                  title="Переключить автозапуск"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${autostart ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
           <IPList ips={ips} isLoading={isLoading} onRefresh={fetchIps} />
-          <HostsBlockPreview activeIps={ips} addLog={addLog} showToast={showToast} />
+          <HostsBlockPreview activeIps={ips} mode={mode} hostsActive={hostsActive} addLog={addLog} showToast={showToast} />
           <TerminalLogs logs={logs} onClear={() => setLogs([])} />
 
           <div className="p-5 bg-neutral-50 dark:bg-black/25 rounded-[20px] border border-neutral-200/60 dark:border-white/5 text-[11px] text-neutral-500 dark:text-[#938f99] space-y-2">
@@ -224,7 +351,7 @@ export default function App() {
               Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси-узлы GeoHide. Изменения вносятся с правами администратора (появится запрос UAC), исходный hosts сохраняется в резервную копию, а блок можно удалить кнопкой «Сбросить hosts».
             </p>
             <p className="leading-relaxed">
-              Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
+              Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Включите «Минимальный режим», чтобы исключить домены авторизации. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
             </p>
             <a
               href="https://github.com/swd3k/spotify-discord-hosts-fixer"
@@ -245,6 +372,56 @@ export default function App() {
         </div>
       </main>
 
+      <AnimatePresence>
+        {consentOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-white dark:bg-[#1c1b1f] rounded-[24px] border border-neutral-200 dark:border-white/10 shadow-2xl p-6 space-y-4"
+            >
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle size={18} className="text-amber-500 flex-shrink-0" />
+                <h2 className="text-sm font-bold text-neutral-800 dark:text-[#e6e1e5]">Что сейчас произойдёт</h2>
+              </div>
+              <div className="text-xs text-neutral-600 dark:text-[#cac5cd] leading-relaxed space-y-2">
+                <p>
+                  Программа изменит системный файл hosts: домены Spotify будут направлены на прокси-узлы GeoHide — сторонний сервис, которому вы должны доверять. Потребуются права администратора (запрос UAC).
+                </p>
+                <p>
+                  Перед изменением создаётся резервная копия hosts, и всё полностью обратимо кнопкой «Сбросить hosts».
+                </p>
+                <p>
+                  {mode === "minimal"
+                    ? "Включён минимальный режим: домены авторизации (accounts, login5) затронуты не будут."
+                    : "Будут перенаправлены в том числе домены авторизации (accounts.spotify.com, login5.spotify.com). Включите «Минимальный режим» в настройках, чтобы их исключить."}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <button
+                  onClick={() => setConsentOpen(false)}
+                  className="h-[42px] border border-neutral-300 dark:border-[#49454f] bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800/40 text-neutral-600 dark:text-[#cac5cd] font-semibold rounded-full transition-all duration-200 text-sm cursor-pointer active:scale-[0.98]"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleConsentAccept}
+                  className="h-[42px] bg-[#1DB954] hover:bg-[#1ed760] text-[#003912] font-semibold rounded-full transition-all duration-200 shadow-md text-sm cursor-pointer active:scale-[0.98]"
+                >
+                  Понимаю, применить
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="fixed bottom-4 right-4 space-y-2 z-50 pointer-events-none max-w-sm w-full">
         <AnimatePresence>
           {toasts.map((toast) => (
@@ -261,6 +438,8 @@ export default function App() {
                   <CheckCircle className="text-[#1DB954] flex-shrink-0" size={16} />
                 ) : toast.type === "error" ? (
                   <XCircle className="text-rose-500 flex-shrink-0" size={16} />
+                ) : toast.type === "warning" ? (
+                  <AlertTriangle className="text-amber-500 flex-shrink-0" size={16} />
                 ) : (
                   <Info className="text-sky-500 flex-shrink-0" size={16} />
                 )}
