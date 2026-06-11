@@ -98,21 +98,21 @@ CI собирает проект на каждый push в `main` и pull reques
 Полный режим:
 ```
 api.spotify.com
-login5.spotify.com †
+login5.spotify.com *
 encore.scdn.co
 gew1-spclient.spotify.com
 spclient.wg.spotify.com
 api-partner.spotify.com
 aet.spotify.com
-www.spotify.com †
-accounts.spotify.com †
+www.spotify.com *
+accounts.spotify.com *
 open.spotify.com
-accounts.scdn.co †
+accounts.scdn.co *
 gew1-dealer.spotify.com
 open-exp.spotifycdn.com
 www-growth.scdn.co
 ```
-† — домены авторизации, исключаются в минимальном режиме.
+* — домены авторизации, исключаются в минимальном режиме.
 
 ## Отказ от ответственности
 
