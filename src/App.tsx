@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle, Github, ExternalLink, Settings2, ShieldCheck, Power, AlertTriangle } from "lucide-react";
+import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle, Github, ExternalLink, Settings2, Power, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { IPList } from "./components/IPList";
 import logoUrl from "./assets/logo.png?inline";
 import { HostsBlockPreview } from "./components/HostsBlockPreview";
 import { TerminalLogs } from "./components/TerminalLogs";
-import { IpRecord, ToastMessage, DomainMode, ActiveBlock } from "./types";
+import { IpRecord, ToastMessage, ActiveBlock } from "./types";
 import { pickBestIp } from "../shared/hostsBlock";
 
 const CONSENT_KEY = "spf_consent_v1";
@@ -20,10 +20,6 @@ export default function App() {
   const [activeBlock, setActiveBlock] = useState<ActiveBlock | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
 
-  // "minimal" — без доменов авторизации (accounts/login5): логин не идёт через прокси.
-  const [mode, setMode] = useState<DomainMode>(() =>
-    localStorage.getItem("spf_mode") === "minimal" ? "minimal" : "full",
-  );
   const [autostart, setAutostart] = useState(false);
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -57,10 +53,6 @@ export default function App() {
     else root.classList.remove("dark");
     localStorage.setItem("spf_theme", theme);
   }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem("spf_mode", mode);
-  }, [mode]);
 
   useEffect(() => {
     addLog("[SYSTEM] Spotify Discord Hosts Fixer запущен.", "info");
@@ -148,7 +140,7 @@ export default function App() {
     // всё равно использует только первую запись hosts для домена.
     const best = pickBestIp(ips);
     try {
-      const res = await window.api.apply(best ? [best] : [], mode);
+      const res = await window.api.apply(best ? [best] : []);
       if (res.success) {
         setHostsActive(true);
         setActiveBlock(await window.api.getActiveBlock());
@@ -211,7 +203,7 @@ export default function App() {
     <div className="min-h-screen bg-white/60 dark:bg-[#0c0c0c]/55 backdrop-blur-sm text-neutral-850 dark:text-neutral-100 flex flex-col items-center justify-center p-4 select-none selection:bg-[#1ED760]/30 selection:text-[#19B850] transition-all duration-300 relative overflow-x-hidden">
       <div className="absolute top-0 left-0 right-0 h-[300px] bg-gradient-to-b from-[#1DB954]/5 to-transparent pointer-events-none blur-3xl rounded-full opacity-60 dark:opacity-30"></div>
 
-      <main className="w-full max-w-lg bg-white dark:bg-[#1c1b1f] rounded-[28px] border border-neutral-200 dark:border-white/10 shadow-2xl overflow-hidden relative z-10 duration-250">
+      <main className="w-full max-w-5xl bg-white dark:bg-[#1c1b1f] rounded-[28px] border border-neutral-200 dark:border-white/10 shadow-2xl overflow-hidden relative z-10 duration-250">
         <div className="px-6 py-4 border-b border-neutral-150 dark:border-white/5 flex items-center justify-between bg-neutral-50/50 dark:bg-neutral-900/40">
           <div className="flex items-center gap-2.5">
             <img src={logoUrl} alt="Spotify Discord Fixer" className="w-9 h-9 rounded-lg shadow-md shadow-[#1DB954]/20" />
@@ -242,7 +234,9 @@ export default function App() {
           </div>
         </div>
 
-        <div className="p-5 space-y-5">
+        {/* Горизонтальная компоновка: слева — статус и управление, справа — данные и логи. */}
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+          <div className="space-y-5">
           <div className="p-5 rounded-[20px] border transition-all duration-300 flex items-center gap-4 shadow-md bg-[#333333] dark:bg-[#2a292d] border-white/10 text-white">
             <div className="relative flex items-center justify-center flex-shrink-0">
               <div className={`w-3 h-3 rounded-full transition-all duration-300 ${hostsActive ? "bg-[#1DB954] shadow-[0_0_12px_#1DB954]" : "bg-[#febc2e] shadow-[0_0_12px_#febc2e]"}`}></div>
@@ -302,24 +296,6 @@ export default function App() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0">
-                  <ShieldCheck size={15} className="text-[#1DB954] mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-neutral-800 dark:text-[#e6e1e5]">Минимальный режим</p>
-                    <p className="text-[10px] text-neutral-450 dark:text-[#938f99] leading-relaxed">
-                      Не перенаправлять домены авторизации (accounts, login5) — логин в Spotify не пойдёт через прокси.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMode(mode === "minimal" ? "full" : "minimal")}
-                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer ${mode === "minimal" ? "bg-[#1DB954]" : "bg-neutral-300 dark:bg-neutral-700"}`}
-                  title="Переключить минимальный режим"
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${mode === "minimal" ? "translate-x-4" : ""}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-start gap-2.5 min-w-0">
                   <Power size={15} className="text-[#1DB954] mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-neutral-800 dark:text-[#e6e1e5]">Запускать вместе с Windows</p>
@@ -339,10 +315,6 @@ export default function App() {
             </div>
           </div>
 
-          <IPList ips={ips} isLoading={isLoading} onRefresh={fetchIps} />
-          <HostsBlockPreview activeIps={ips} mode={mode} hostsActive={hostsActive} addLog={addLog} showToast={showToast} />
-          <TerminalLogs logs={logs} onClear={() => setLogs([])} />
-
           <div className="p-5 bg-neutral-50 dark:bg-black/25 rounded-[20px] border border-neutral-200/60 dark:border-white/5 text-[11px] text-neutral-500 dark:text-[#938f99] space-y-2">
             <span className="font-bold flex items-center gap-1.5 text-neutral-700 dark:text-[#e6e1e5] mb-0.5">
               <Info size={12} className="text-[#1DB954]" />
@@ -352,7 +324,7 @@ export default function App() {
               Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси-узлы GeoHide. Изменения вносятся с правами администратора (появится запрос UAC), исходный hosts сохраняется в резервную копию, а блок можно удалить кнопкой «Сбросить hosts».
             </p>
             <p className="leading-relaxed">
-              Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Включите «Минимальный режим», чтобы исключить домены авторизации. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
+              Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
             </p>
             <a
               href="https://github.com/swd3k/spotify-discord-hosts-fixer"
@@ -364,6 +336,13 @@ export default function App() {
               Помощь и исходный код на GitHub
               <ExternalLink size={11} />
             </a>
+          </div>
+          </div>
+
+          <div className="space-y-5">
+          <IPList ips={ips} isLoading={isLoading} onRefresh={fetchIps} />
+          <HostsBlockPreview activeIps={ips} hostsActive={hostsActive} addLog={addLog} showToast={showToast} />
+          <TerminalLogs logs={logs} onClear={() => setLogs([])} />
           </div>
         </div>
 
@@ -402,9 +381,7 @@ export default function App() {
                   Перед изменением создаётся резервная копия hosts, и всё полностью обратимо кнопкой «Сбросить hosts».
                 </p>
                 <p>
-                  {mode === "minimal"
-                    ? "Включён минимальный режим: домены авторизации (accounts, login5) затронуты не будут."
-                    : "Будут перенаправлены в том числе домены авторизации (accounts.spotify.com, login5.spotify.com). Включите «Минимальный режим» в настройках, чтобы их исключить."}
+                  Будут перенаправлены в том числе домены авторизации (accounts.spotify.com, login5.spotify.com).
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-1">

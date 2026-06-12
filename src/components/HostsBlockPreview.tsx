@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Copy, Check, Code, FileCheck } from "lucide-react";
-import { IpRecord, DomainMode } from "../types";
+import { IpRecord } from "../types";
 
 interface Props {
   activeIps: IpRecord[];
-  mode: DomainMode;
   hostsActive: boolean;
   addLog: (msg: string) => void;
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
 }
 
-export const HostsBlockPreview: React.FC<Props> = ({ activeIps, mode, hostsActive, addLog, showToast }) => {
+export const HostsBlockPreview: React.FC<Props> = ({ activeIps, hostsActive, addLog, showToast }) => {
   const [copied, setCopied] = useState(false);
   const [blockText, setBlockText] = useState("");
   const [installedText, setInstalledText] = useState("");
@@ -20,13 +19,13 @@ export const HostsBlockPreview: React.FC<Props> = ({ activeIps, mode, hostsActiv
 
   useEffect(() => {
     let cancelled = false;
-    window.api.getBlockText(ips, mode).then((text) => {
+    window.api.getBlockText(ips).then((text) => {
       if (!cancelled) setBlockText(text);
     });
     return () => {
       cancelled = true;
     };
-  }, [ips.join(","), mode]);
+  }, [ips.join(",")]);
 
   // Реальный установленный блок из файла hosts (если перенаправления активны).
   useEffect(() => {

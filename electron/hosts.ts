@@ -9,16 +9,15 @@ import {
   START_MARKER,
   END_MARKER,
   IPV4_RE,
+  SPOTIFY_DOMAINS,
   buildBlock,
-  domainsForMode,
   extractBlock,
-  type DomainMode,
   type IpRecord,
   type ParsedBlock,
 } from "../shared/hostsBlock";
 
 export { START_MARKER, END_MARKER, SPOTIFY_DOMAINS, buildBlock } from "../shared/hostsBlock";
-export type { DomainMode, IpRecord, ParsedBlock } from "../shared/hostsBlock";
+export type { IpRecord, ParsedBlock } from "../shared/hostsBlock";
 
 // Резервные адреса на случай, если резолв geohide.ru не сработал.
 const FALLBACK_IPS = ["37.230.192.51", "45.155.204.190", "185.162.248.51"];
@@ -201,23 +200,22 @@ async function verifyRedirect(domain: string, expectedIp: string): Promise<boole
   }
 }
 
-export async function applyHosts(ips: string[], mode: DomainMode = "full"): Promise<{ success: boolean; message: string }> {
+export async function applyHosts(ips: string[]): Promise<{ success: boolean; message: string }> {
   const ip = ips.find((candidate) => IPV4_RE.test(candidate));
   if (!ip) {
     return { success: false, message: "Нет валидных IP для применения." };
   }
-  const domains = domainsForMode(mode);
   try {
-    await runHostsAction("apply", buildBlock([ip], mode));
+    await runHostsAction("apply", buildBlock([ip]));
 
-    const verified = await verifyRedirect(domains[0], ip);
+    const checkDomain = SPOTIFY_DOMAINS[0];
+    const verified = await verifyRedirect(checkDomain, ip);
     const verifyNote = verified
-      ? `Проверка: ${domains[0]} → ${ip}, перенаправление работает.`
-      : `Внимание: проверка ${domains[0]} не подтвердила перенаправление (возможно, нужен сброс кэша DNS).`;
-    const modeNote = mode === "minimal" ? " (минимальный режим, без доменов авторизации)" : "";
+      ? `Проверка: ${checkDomain} → ${ip}, перенаправление работает.`
+      : `Внимание: проверка ${checkDomain} не подтвердила перенаправление (возможно, нужен сброс кэша DNS).`;
     return {
       success: true,
-      message: `Применён узел ${ip} для ${domains.length} доменов${modeNote}. ${verifyNote} Перезапустите Discord и Spotify.`,
+      message: `Применён узел ${ip} для ${SPOTIFY_DOMAINS.length} доменов. ${verifyNote} Перезапустите Discord и Spotify.`,
     };
   } catch (e: any) {
     return { success: false, message: e?.message || "Не удалось изменить hosts (отменено или нет прав)." };

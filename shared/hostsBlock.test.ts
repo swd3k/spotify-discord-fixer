@@ -3,8 +3,6 @@ import {
   START_MARKER,
   END_MARKER,
   SPOTIFY_DOMAINS,
-  MINIMAL_DOMAINS,
-  AUTH_DOMAINS,
   buildBlock,
   extractBlock,
   pickBestIp,
@@ -33,15 +31,6 @@ describe("buildBlock", () => {
     expect(buildBlock([])).toBe(`${START_MARKER}\n${END_MARKER}`);
     expect(buildBlock(["nope"])).toBe(`${START_MARKER}\n${END_MARKER}`);
   });
-
-  it("в минимальном режиме не содержит доменов авторизации", () => {
-    const block = buildBlock(["1.2.3.4"], "minimal");
-    for (const domain of AUTH_DOMAINS) {
-      expect(block).not.toContain(domain);
-    }
-    expect(block).toContain("1.2.3.4 spclient.wg.spotify.com");
-    expect(block.split("\n")).toHaveLength(MINIMAL_DOMAINS.length + 2);
-  });
 });
 
 describe("extractBlock", () => {
@@ -50,12 +39,12 @@ describe("extractBlock", () => {
   });
 
   it("разбирает блок, построенный buildBlock (roundtrip)", () => {
-    const block = buildBlock(["1.2.3.4"], "minimal");
+    const block = buildBlock(["1.2.3.4"]);
     const hosts = `127.0.0.1 localhost\n\n${block}\n`;
     const parsed = extractBlock(hosts);
     expect(parsed).not.toBeNull();
     expect(parsed!.ip).toBe("1.2.3.4");
-    expect(parsed!.domains).toEqual(MINIMAL_DOMAINS);
+    expect(parsed!.domains).toEqual(SPOTIFY_DOMAINS);
     expect(parsed!.text).toBe(block);
   });
 

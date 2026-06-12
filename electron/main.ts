@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import fs from "node:fs";
-import { getIps, getStatus, applyHosts, removeHosts, buildBlock, getActiveBlock, pingIp, type DomainMode } from "./hosts";
+import { getIps, getStatus, applyHosts, removeHosts, buildBlock, getActiveBlock, pingIp } from "./hosts";
 
 const isDev = !app.isPackaged && process.env.VITE_DEV_SERVER_URL;
 
@@ -34,7 +34,7 @@ function loadWindowState(): WindowState {
   } catch {
     // Нет сохранённого состояния — используем размеры по умолчанию.
   }
-  return { width: 560, height: 880 };
+  return { width: 1080, height: 720 };
 }
 
 function saveWindowState(win: BrowserWindow) {
@@ -53,8 +53,8 @@ function createWindow(showOnReady = true) {
     height: state.height,
     x: state.x,
     y: state.y,
-    minWidth: 540,
-    minHeight: 700,
+    minWidth: 900,
+    minHeight: 620,
     resizable: true,
     show: false,
     icon: assetPath("icon.png"),
@@ -188,15 +188,13 @@ function setupAutoUpdater() {
   setInterval(check, 4 * 60 * 60 * 1000);
 }
 
-const normalizeMode = (mode: unknown): DomainMode => (mode === "minimal" ? "minimal" : "full");
-
 // IPC: данные и операции
 ipcMain.handle("get-ips", async () => getIps());
 ipcMain.handle("get-status", async () => getStatus());
 ipcMain.handle("get-active-block", async () => getActiveBlock());
 ipcMain.handle("ping-ip", async (_e, ip: string) => pingIp(String(ip || "")));
-ipcMain.handle("get-block-text", async (_e, ips: string[], mode?: string) => buildBlock(ips || [], normalizeMode(mode)));
-ipcMain.handle("apply", async (_e, ips: string[], mode?: string) => applyHosts(ips || [], normalizeMode(mode)));
+ipcMain.handle("get-block-text", async (_e, ips: string[]) => buildBlock(ips || []));
+ipcMain.handle("apply", async (_e, ips: string[]) => applyHosts(ips || []));
 ipcMain.handle("remove", async () => removeHosts());
 
 // IPC: автозапуск вместе с системой (свёрнуто в трей).

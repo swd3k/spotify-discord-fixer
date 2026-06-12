@@ -1,8 +1,8 @@
 // Чистая логика и базовые типы живут в shared/hostsBlock.ts —
 // общие для main-процесса и рендерера.
-import type { IpRecord, DomainMode, ParsedBlock as ActiveBlock } from "../shared/hostsBlock";
+import type { IpRecord, ParsedBlock as ActiveBlock } from "../shared/hostsBlock";
 
-export type { IpRecord, DomainMode, ActiveBlock };
+export type { IpRecord, ActiveBlock };
 
 export interface ToastMessage {
   id: string;
@@ -21,8 +21,8 @@ export interface FixerApi {
   getStatus: () => Promise<boolean | null>;
   getActiveBlock: () => Promise<ActiveBlock | null>;
   pingIp: (ip: string) => Promise<number | null>;
-  getBlockText: (ips: string[], mode: DomainMode) => Promise<string>;
-  apply: (ips: string[], mode: DomainMode) => Promise<ApplyResult>;
+  getBlockText: (ips: string[]) => Promise<string>;
+  apply: (ips: string[]) => Promise<ApplyResult>;
   remove: () => Promise<ApplyResult>;
   getAutostart: () => Promise<boolean>;
   setAutostart: (enabled: boolean) => Promise<boolean>;

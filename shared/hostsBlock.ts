@@ -4,18 +4,7 @@
 export const START_MARKER = "#spotify-discord-hosts";
 export const END_MARKER = "#end-spotify-discord-hosts";
 
-export type DomainMode = "full" | "minimal";
-
-// Домены авторизации Spotify. В минимальном режиме они не перенаправляются,
-// чтобы поток логина (пароль, токены) не проходил через сторонний прокси.
-export const AUTH_DOMAINS = [
-  "accounts.spotify.com",
-  "login5.spotify.com",
-  "accounts.scdn.co",
-  "www.spotify.com",
-];
-
-// Полный список доменов Spotify, которые перенаправляются на прокси-узлы GeoHide.
+// Домены Spotify, которые перенаправляются на прокси-узлы GeoHide.
 export const SPOTIFY_DOMAINS = [
   "api.spotify.com",
   "login5.spotify.com",
@@ -32,13 +21,6 @@ export const SPOTIFY_DOMAINS = [
   "open-exp.spotifycdn.com",
   "www-growth.scdn.co",
 ];
-
-// Минимальный режим: только домены, нужные для презенса/синхронизации, без авторизации.
-export const MINIMAL_DOMAINS = SPOTIFY_DOMAINS.filter((d) => !AUTH_DOMAINS.includes(d));
-
-export function domainsForMode(mode: DomainMode): string[] {
-  return mode === "minimal" ? MINIMAL_DOMAINS : SPOTIFY_DOMAINS;
-}
 
 export const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
@@ -59,11 +41,11 @@ export function pickBestIp(records: IpRecord[]): string | null {
 }
 
 // Блок строится для одного (лучшего) IP — первого валидного в списке.
-export function buildBlock(ips: string[], mode: DomainMode = "full"): string {
+export function buildBlock(ips: string[]): string {
   const ip = ips.find((candidate) => IPV4_RE.test(candidate));
   const lines = [START_MARKER];
   if (ip) {
-    for (const domain of domainsForMode(mode)) {
+    for (const domain of SPOTIFY_DOMAINS) {
       lines.push(`${ip} ${domain}`);
     }
   }
