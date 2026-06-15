@@ -1,0 +1,119 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # Проверка на каждый push в main и PR: ловит битые файлы и ошибки сборки
+  # сразу, а не на этапе релиза.
+  check:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Ловит «тихие» поломки сборки: например, без vite.config.ts vite собирает
+      # в dist/ вместо dist/renderer/, и приложение открывается пустым окном.
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist/renderer/index.html)) { throw "dist/renderer/index.html отсутствует — проверьте vite.config.ts" }
+          if (-not (Test-Path dist/electron/main.js)) { throw "dist/electron/main.js отсутствует" }
+          if (-not (Test-Path dist/electron/preload.js)) { throw "dist/electron/preload.js отсутствует" }
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Версия берётся из git-тега: имя .exe и тег физически не могут разойтись.
+      - name: Set version from tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build and package
+        run: npm run dist
+
+      # Тело релиза — только верхняя секция RELEASE_NOTES.md (текущая версия),
+      # а не весь файл с историей.
+      - name: Extract release notes
+        shell: bash
+        run: awk '/^---/{exit} {print}' RELEASE_NOTES.md > release_body.md
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          Get-FileHash release/*.exe -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
+            Out-File release/SHA256SUMS.txt -Encoding ascii
+          Get-Content release/SHA256SUMS.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            release/*.exe
+            release/latest.yml
+            release/SHA256SUMS.txt
+
+      # latest.yml нужен electron-updater для автообновления установленных копий.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+            release/SHA256SUMS.txt
+          body_path: release_body.md
+          draft: false
+          prerelease: false
