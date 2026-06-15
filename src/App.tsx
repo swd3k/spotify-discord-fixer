@@ -216,7 +216,7 @@ export default function App() {
 
           <div className="flex items-center gap-1.5">
             <a
-              href="https://github.com/swd3k/spotify-discord-hosts-fixer"
+              href="https://github.com/swd3k/spotify-discord-fixer"
               target="_blank"
               rel="noreferrer"
               className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-lg transition-all text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-white cursor-pointer"
@@ -327,7 +327,7 @@ export default function App() {
               Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
             </p>
             <a
-              href="https://github.com/swd3k/spotify-discord-hosts-fixer"
+              href="https://github.com/swd3k/spotify-discord-fixer"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] font-semibold transition-colors mt-1"

@@ -31,7 +31,7 @@
 > [!IMPORTANT]
 > ### 🔐 Проверяйте, что запускаете
 > К каждому релизу прилагается файл `SHA256SUMS.txt` с контрольными суммами. **Всегда сверяйте хэш**
-> скачанного файла перед запуском и используйте только сборки из этого репозитория ([Releases](https://github.com/swd3k/spotify-discord-hosts-fixer/releases)).
+> скачанного файла перед запуском и используйте только сборки из этого репозитория ([Releases](https://github.com/swd3k/spotify-discord-fixer/releases)).
 > Не уверены? Соберите программу из исходников сами — инструкция ниже.
 
 ---
@@ -67,7 +67,7 @@
 ## 📥 Установка (готовый .exe)
 
 Скачайте установщик или portable-версию со страницы
-[**Releases**](https://github.com/swd3k/spotify-discord-hosts-fixer/releases) и запустите.
+[**Releases**](https://github.com/swd3k/spotify-discord-fixer/releases) и запустите.
 
 **🔎 Проверка целостности.** К каждому релизу прилагается файл `SHA256SUMS.txt` с контрольными
 суммами. Сверить можно командой PowerShell:
@@ -114,7 +114,7 @@ CI собирает проект на каждый push в `main` и pull reques
 
 - 🌐 GeoHide DNS — https://dns.geohide.ru:8443/
 - 🎶 SpotX — https://github.com/SpotX-Official/SpotX
-- 💻 Исходный код — https://github.com/swd3k/spotify-discord-hosts-fixer
+- 💻 Исходный код — https://github.com/swd3k/spotify-discord-fixer
 
 ## 🌍 Обрабатываемые домены
 
