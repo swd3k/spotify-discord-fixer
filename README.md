@@ -2,7 +2,7 @@
   <img src="docs/banner.png" alt="Spotify Discord Fixer" width="100%">
 </p>
 
-# 🎵 Spotify Discord Hosts Fixer
+# 🎧 Spotify Discord Fixer
 
 > [!NOTE]
 > **Неофициальный** инструмент с открытым исходным кодом. Не связан со Spotify, Discord или GeoHide.
