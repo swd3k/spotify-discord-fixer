@@ -89,8 +89,8 @@
       "category": "Utility",
       "icon": "build/icon.png",
       "maintainer": "swd3k <217737403+swd3k@users.noreply.github.com>",
-      "desktopName": "spotify-discord-hosts-fixer",
       "synopsis": "Восстановление Spotify-статуса в Discord через hosts",
+      "executableName": "spotify-discord-hosts-fixer",
       "artifactName": "Spotify-Discord-Hosts-Fixer-${version}-linux-${arch}.${ext}"
     },
     "mac": {
