@@ -8,7 +8,7 @@ import sudo from "sudo-prompt";
 import {
   START_MARKER,
   END_MARKER,
-  IPV4_RE,
+  validateIp,
   SPOTIFY_DOMAINS,
   buildBlock,
   extractBlock,
@@ -51,7 +51,7 @@ function tcpPing(ip: string, port = 443, timeout = 3000): Promise<number | null>
 
 // Точечная проверка одного узла (для кнопки «Проверить» и периодической перепроверки).
 export async function pingIp(ip: string): Promise<number | null> {
-  if (!IPV4_RE.test(ip)) return null;
+  if (!validateIp(ip)) return null;
   return tcpPing(ip);
 }
 
@@ -64,7 +64,7 @@ export async function getIps(): Promise<IpRecord[]> {
     resolved = [];
   }
 
-  const all = Array.from(new Set([...resolved, ...FALLBACK_IPS])).filter((ip) => IPV4_RE.test(ip));
+  const all = Array.from(new Set([...resolved, ...FALLBACK_IPS])).filter((ip) => validateIp(ip));
 
   const records = await Promise.all(
     all.map(async (ip): Promise<IpRecord> => {
@@ -115,6 +115,13 @@ $endMarker = "${END_MARKER}"
 $ts = Get-Date -Format "yyyyMMdd_HHmmss"
 Copy-Item -LiteralPath $hostsPath -Destination "$hostsPath.backup.$ts" -Force
 
+# Оставляем только последние 5 резервных копий hosts — старые удаляем, чтобы
+# папка etc не заполнялась бесконечно при многократных применениях.
+Get-ChildItem "$hostsPath.backup.*" -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -Skip 5 |
+  Remove-Item -Force -ErrorAction SilentlyContinue
+
 $lines = @()
 if (Test-Path -LiteralPath $hostsPath) { $lines = Get-Content -LiteralPath $hostsPath }
 $out = New-Object System.Collections.Generic.List[string]
@@ -141,6 +148,8 @@ BLOCK_FILE="$2"
 HOSTS="/etc/hosts"
 TS=$(date +%Y%m%d_%H%M%S)
 cp "$HOSTS" "$HOSTS.backup.$TS"
+# Оставляем только последние 5 резервных копий hosts.
+ls -1t "$HOSTS".backup.* 2>/dev/null | tail -n +6 | xargs -r rm -f
 TMP=$(mktemp)
 awk '/${START_MARKER}/{skip=1;next} /${END_MARKER}/{skip=0;next} !skip{print}' "$HOSTS" > "$TMP"
 if [ "$ACTION" = "apply" ]; then
@@ -201,7 +210,7 @@ async function verifyRedirect(domain: string, expectedIp: string): Promise<boole
 }
 
 export async function applyHosts(ips: string[]): Promise<{ success: boolean; message: string }> {
-  const ip = ips.find((candidate) => IPV4_RE.test(candidate));
+  const ip = ips.find((candidate) => validateIp(candidate));
   if (!ip) {
     return { success: false, message: "Нет валидных IP для применения." };
   }

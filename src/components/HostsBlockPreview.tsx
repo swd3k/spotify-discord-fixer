@@ -1,21 +1,39 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Copy, Check, Code, FileCheck } from "lucide-react";
+import { pickBestIp } from "../../shared/hostsBlock";
 import { IpRecord } from "../types";
 
 interface Props {
   activeIps: IpRecord[];
-  hostsActive: boolean;
+  // null трактуется как «не активно» (статус hosts неизвестен).
+  hostsActive: boolean | null;
+  /** Явно выбранный узел; если null — в предпросмотре лучший по задержке. */
+  selectedIp: string | null;
   addLog: (msg: string) => void;
   showToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
 }
 
-export const HostsBlockPreview: React.FC<Props> = ({ activeIps, hostsActive, addLog, showToast }) => {
+export const HostsBlockPreview: React.FC<Props> = ({
+  activeIps,
+  hostsActive,
+  selectedIp,
+  addLog,
+  showToast,
+}) => {
   const [copied, setCopied] = useState(false);
   const [blockText, setBlockText] = useState("");
   const [installedText, setInstalledText] = useState("");
 
-  // Узлы уже отсортированы по задержке; блок строится для одного лучшего.
-  const ips = activeIps.filter((ip) => ip.status === "Up").map((ip) => ip.ip);
+  // Один IP для предпросмотра: выбранный (если Up) либо лучший по задержке.
+  const previewIp = useMemo(() => {
+    if (selectedIp) {
+      const match = activeIps.find((r) => r.ip === selectedIp && r.status === "Up");
+      if (match) return match.ip;
+    }
+    return pickBestIp(activeIps);
+  }, [activeIps, selectedIp]);
+
+  const ips = previewIp ? [previewIp] : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +43,7 @@ export const HostsBlockPreview: React.FC<Props> = ({ activeIps, hostsActive, add
     return () => {
       cancelled = true;
     };
-  }, [ips.join(",")]);
+  }, [previewIp ?? ""]);
 
   // Реальный установленный блок из файла hosts (если перенаправления активны).
   useEffect(() => {
@@ -58,7 +76,13 @@ export const HostsBlockPreview: React.FC<Props> = ({ activeIps, hostsActive, add
       </h3>
 
       <div className="text-xs text-neutral-500 dark:text-[#938f99] leading-relaxed mb-3">
-        Эти строки будут добавлены в системный файл hosts при нажатии «Обновить и применить» (один лучший узел на все домены). Программа сделает резервную копию и потребует прав администратора.
+        Эти строки будут добавлены в системный файл hosts при нажатии «Обновить и применить»
+        {previewIp
+          ? selectedIp && selectedIp === previewIp
+            ? ` (выбранный узел ${previewIp})`
+            : ` (лучший узел ${previewIp})`
+          : " (нет доступных узлов)"}
+        . Программа сделает резервную копию и потребует прав администратора.
       </div>
 
       <div className="relative">

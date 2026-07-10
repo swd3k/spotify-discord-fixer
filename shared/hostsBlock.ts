@@ -22,7 +22,14 @@ export const SPOTIFY_DOMAINS = [
   "www-growth.scdn.co",
 ];
 
-export const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+// Строгий шаблон IPv4: каждый октет обязан быть в диапазоне 0–255.
+// (Прежний宽松-вариант \d{1,3} пропускал значения вроде 999.999.999.999.)
+export const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
+// Явная проверка одного адреса — единая точка валидации для main-процесса и рендерера.
+export function validateIp(ip: unknown): ip is string {
+  return typeof ip === "string" && IPV4_RE.test(ip);
+}
 
 export interface IpRecord {
   ip: string;

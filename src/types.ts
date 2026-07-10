@@ -26,6 +26,7 @@ export interface FixerApi {
   remove: () => Promise<ApplyResult>;
   getAutostart: () => Promise<boolean>;
   setAutostart: (enabled: boolean) => Promise<boolean>;
+  onTrayMinimized: (cb: () => void) => () => void;
 }
 
 declare global {

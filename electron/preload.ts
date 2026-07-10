@@ -10,4 +10,11 @@ contextBridge.exposeInMainWorld("api", {
   remove: () => ipcRenderer.invoke("remove"),
   getAutostart: () => ipcRenderer.invoke("get-autostart"),
   setAutostart: (enabled: boolean) => ipcRenderer.invoke("set-autostart", enabled),
+  // Односторонние события от main-процесса.
+  onTrayMinimized: (cb: () => void) => {
+    const listener = () => cb();
+    ipcRenderer.on("tray-minimized", listener);
+    // Возврат функции отписки — чтобы рендерер мог очистить слушатель.
+    return () => ipcRenderer.removeListener("tray-minimized", listener);
+  },
 });

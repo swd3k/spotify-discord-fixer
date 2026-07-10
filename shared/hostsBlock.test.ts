@@ -6,6 +6,7 @@ import {
   buildBlock,
   extractBlock,
   pickBestIp,
+  validateIp,
   type IpRecord,
 } from "./hostsBlock";
 
@@ -83,5 +84,35 @@ describe("pickBestIp", () => {
   it("узел без замера задержки проигрывает узлу с замером", () => {
     const best = pickBestIp([rec("1.1.1.1", "Up"), rec("2.2.2.2", "Up", 500)]);
     expect(best).toBe("2.2.2.2");
+  });
+});
+
+describe("validateIp", () => {
+  it("принимает корректные IPv4, включая граничные значения октетов", () => {
+    expect(validateIp("0.0.0.0")).toBe(true);
+    expect(validateIp("127.0.0.1")).toBe(true);
+    expect(validateIp("255.255.255.255")).toBe(true);
+    expect(validateIp("1.2.3.4")).toBe(true);
+    expect(validateIp("37.230.192.51")).toBe(true);
+  });
+
+  it("отвергает октеты вне диапазона 0–255 (регрессия на宽松-regex)", () => {
+    // Прежний \d{1,3} пропускал такие значения в hosts.
+    expect(validateIp("999.999.999.999")).toBe(false);
+    expect(validateIp("256.0.0.1")).toBe(false);
+    expect(validateIp("1.2.3.256")).toBe(false);
+    expect(validateIp("1000.1.1.1")).toBe(false);
+  });
+
+  it("отвергает не-IP и нестроковые значения", () => {
+    expect(validateIp("not-an-ip")).toBe(false);
+    expect(validateIp("evil; rm -rf /")).toBe(false);
+    expect(validateIp("")).toBe(false);
+    expect(validateIp("1.2.3")).toBe(false);
+    expect(validateIp("1.2.3.4.5")).toBe(false);
+    expect(validateIp(undefined)).toBe(false);
+    expect(validateIp(null)).toBe(false);
+    expect(validateIp(123)).toBe(false);
+    expect(validateIp(["1.2.3.4"])).toBe(false);
   });
 });

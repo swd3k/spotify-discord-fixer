@@ -1,7 +1,15 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, Tray, Menu, nativeImage, screen } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import { getIps, getStatus, applyHosts, removeHosts, buildBlock, getActiveBlock, pingIp } from "./hosts";
+import { validateIp } from "../shared/hostsBlock";
+
+// Приводит произвольный аргумент IPC к массиву валидных IPv4-адресов.
+// Любые нестроковые/невалидные элементы отбрасываются — это входная граница из рендерера.
+function asIpArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => validateIp(item));
+}
 
 const isDev = !app.isPackaged && process.env.VITE_DEV_SERVER_URL;
 
@@ -29,6 +37,20 @@ function loadWindowState(): WindowState {
   try {
     const saved = JSON.parse(fs.readFileSync(windowStatePath(), "utf-8"));
     if (typeof saved.width === "number" && typeof saved.height === "number") {
+      // Сбрасываем позицию, если сохранённое окно оказалось за пределами всех
+      // доступных дисплеев (например, монитор отключили/сменили).
+      if (saved.x !== undefined && saved.y !== undefined) {
+        const displays = screen.getAllDisplays();
+        const onScreen = displays.some((d) => {
+          const { x, y, width, height } = d.bounds;
+          // Хватаемся за левый-верхний угол: если он в каком-то дисплее — оставляем.
+          return saved.x! >= x && saved.x! < x + width && saved.y! >= y && saved.y! < y + height;
+        });
+        if (!onScreen) {
+          saved.x = undefined;
+          saved.y = undefined;
+        }
+      }
       return saved;
     }
   } catch {
@@ -68,7 +90,9 @@ function createWindow(showOnReady = true) {
       preload: assetPath("preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      // Песочница включена: preload использует только contextBridge + ipcRenderer.invoke,
+      // поэтому Node-API в рендерере не нужен. Снижает радиус поражения при XSS.
+      sandbox: true,
     },
   });
 
@@ -82,6 +106,17 @@ function createWindow(showOnReady = true) {
     return { action: "deny" };
   });
 
+  // Запрещаем рендереру самовольно уходить с текущего источника (file:// в проде,
+  // dev-сервер при разработке) — защита от навигации на произвольный URL при XSS.
+  win.webContents.on("will-navigate", (e, url) => {
+    const allowed = isDev ? (process.env.VITE_DEV_SERVER_URL as string) : undefined;
+    if (allowed ? !url.startsWith(allowed) : true) {
+      e.preventDefault();
+    }
+  });
+  // На всякий случай: те же правила для открытия в новом окне/вкладке.
+  win.webContents.on("will-attach-webview", (e) => e.preventDefault());
+
   if (showOnReady) {
     win.once("ready-to-show", () => win.show());
   }
@@ -92,6 +127,8 @@ function createWindow(showOnReady = true) {
     if (!isQuitting) {
       e.preventDefault();
       win.hide();
+      // Сигнал рендереру: окно ушло в трей (используется для одноразовой подсказки).
+      win.webContents.send("tray-minimized");
     }
   });
 
@@ -136,9 +173,26 @@ function createTray() {
 }
 
 // Проблемы обновления невидимы для пользователя, поэтому пишем их в файл.
+// Приложение живёт в трее неделями, поэтому ограничиваем размер лога —
+// если он превышает лимит, оставляем только последнюю половину.
+const UPDATER_LOG_MAX_BYTES = 256 * 1024;
+
 function logUpdater(line: string) {
   try {
-    fs.appendFileSync(path.join(app.getPath("userData"), "updater.log"), `[${new Date().toISOString()}] ${line}\n`);
+    const logPath = path.join(app.getPath("userData"), "updater.log");
+    try {
+      const { size } = fs.statSync(logPath);
+      if (size > UPDATER_LOG_MAX_BYTES) {
+        // Оставляем вторую половину файла — старые записи отбрасываем.
+        const buf = fs.readFileSync(logPath);
+        const half = buf.slice(Math.floor(buf.length / 2));
+        const newlineIdx = half.indexOf(0x0a); // обрезаем до конца первой неполной строки
+        fs.writeFileSync(logPath, newlineIdx >= 0 ? half.slice(newlineIdx + 1) : half);
+      }
+    } catch {
+      // Файла ещё нет или не удалось прочитать — просто пишем дальше.
+    }
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${line}\n`);
   } catch {
     // Не удалось записать лог — не критично.
   }
@@ -188,21 +242,23 @@ function setupAutoUpdater() {
   setInterval(check, 4 * 60 * 60 * 1000);
 }
 
-// IPC: данные и операции
+// IPC: данные и операции.
+// Аргументы из рендерера валидируются во время исполнения — даже при contextIsolation
+// это страховка от неожиданных типов (массив вместо строки, объект и т.п.).
 ipcMain.handle("get-ips", async () => getIps());
 ipcMain.handle("get-status", async () => getStatus());
 ipcMain.handle("get-active-block", async () => getActiveBlock());
-ipcMain.handle("ping-ip", async (_e, ip: string) => pingIp(String(ip || "")));
-ipcMain.handle("get-block-text", async (_e, ips: string[]) => buildBlock(ips || []));
-ipcMain.handle("apply", async (_e, ips: string[]) => applyHosts(ips || []));
+ipcMain.handle("ping-ip", async (_e, ip: unknown) => pingIp(typeof ip === "string" ? ip : ""));
+ipcMain.handle("get-block-text", async (_e, ips: unknown) => buildBlock(asIpArray(ips)));
+ipcMain.handle("apply", async (_e, ips: unknown) => applyHosts(asIpArray(ips)));
 ipcMain.handle("remove", async () => removeHosts());
 
 // IPC: автозапуск вместе с системой (свёрнуто в трей).
 // На Windows args нужно передавать и при чтении, иначе запись в реестре не сматчится.
 const AUTOSTART_ARGS = ["--hidden"];
 ipcMain.handle("get-autostart", () => app.getLoginItemSettings({ args: AUTOSTART_ARGS }).openAtLogin);
-ipcMain.handle("set-autostart", (_e, enabled: boolean) => {
-  app.setLoginItemSettings({ openAtLogin: Boolean(enabled), args: AUTOSTART_ARGS });
+ipcMain.handle("set-autostart", (_e, enabled: unknown) => {
+  app.setLoginItemSettings({ openAtLogin: enabled === true, args: AUTOSTART_ARGS });
   return app.getLoginItemSettings({ args: AUTOSTART_ARGS }).openAtLogin;
 });
 

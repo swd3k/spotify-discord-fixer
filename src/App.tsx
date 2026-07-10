@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Trash2, RefreshCw, Sun, Moon, Info, Play, CheckCircle, XCircle, Github, ExternalLink, Settings2, Power, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { IPList } from "./components/IPList";
+import { CustomIp } from "./components/CustomIp";
 import logoUrl from "./assets/logo.png?inline";
 import { HostsBlockPreview } from "./components/HostsBlockPreview";
 import { TerminalLogs } from "./components/TerminalLogs";
@@ -13,10 +14,13 @@ const CONSENT_KEY = "spf_consent_v1";
 
 export default function App() {
   const [ips, setIps] = useState<IpRecord[]>([]);
+  // Явно выбранный узел для hosts; null — автовыбор лучшего по задержке.
+  const [selectedIp, setSelectedIp] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
-  const [hostsActive, setHostsActive] = useState(false);
+  // null — статус неизвестен (например, нет прав на чтение hosts).
+  const [hostsActive, setHostsActive] = useState<boolean | null>(null);
   const [activeBlock, setActiveBlock] = useState<ActiveBlock | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
 
@@ -34,10 +38,35 @@ export default function App() {
   // Чтобы предупреждение «узел отвалился» не сыпалось каждые 90 секунд.
   const warnedDownRef = useRef(false);
 
+  // Очередь тостов с ограничением: держим не более 5, чтобы при серии операций
+  // они не накапливались бесконечно. Таймауты чистим при размонтировании.
+  const toastTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => {
+    const timeouts = toastTimeouts.current;
+    return () => {
+      timeouts.forEach((t) => clearTimeout(t));
+      timeouts.clear();
+    };
+  }, []);
+
+  const dismissToast = (id: string) => {
+    const t = toastTimeouts.current.get(id);
+    if (t) {
+      clearTimeout(t);
+      toastTimeouts.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
+
   const showToast = (message: string, type: ToastMessage["type"] = "success") => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    setToasts((prev) => {
+      const next = [...prev, { id, message, type }];
+      // Оставляем только последние 5 — старые сверху отбрасываются.
+      return next.length > 5 ? next.slice(next.length - 5) : next;
+    });
+    const handle = setTimeout(() => dismissToast(id), 4000);
+    toastTimeouts.current.set(id, handle);
   };
 
   const addLog = (message: string, level: "info" | "success" | "warn" | "error" = "info") => {
@@ -59,6 +88,18 @@ export default function App() {
     refreshStatus();
     fetchIps();
     window.api.getAutostart().then(setAutostart).catch(() => {});
+  }, []);
+
+  // Одноразовая подсказка при первом сворачивании в трей: закрытие крестиком
+  // не завершает программу — она остаётся в области уведомлений.
+  useEffect(() => {
+    if (localStorage.getItem("spf_tray_hint_seen")) return;
+    const unsubscribe = window.api.onTrayMinimized(() => {
+      localStorage.setItem("spf_tray_hint_seen", "1");
+      showToast("Программа свёрнута в трей. Чтобы выйти полностью — «Выход» в меню значка.", "info");
+      unsubscribe();
+    });
+    return unsubscribe;
   }, []);
 
   // Периодическая перепроверка активного узла: если он отвалился — предупреждаем.
@@ -95,6 +136,9 @@ export default function App() {
   const refreshStatus = async () => {
     const active = await window.api.getStatus();
     if (active === null) {
+      // Явно переводим индикатор в «статус неизвестен» — прежнее значение могло устареть.
+      setHostsActive(null);
+      setActiveBlock(null);
       addLog("[SYSTEM] Не удалось прочитать файл hosts (статус неизвестен).", "warn");
       return;
     }
@@ -113,7 +157,20 @@ export default function App() {
     addLog("[API] Резолвлю geohide.ru и проверяю доступность узлов...", "info");
     try {
       const result = await window.api.getIps();
-      setIps(result);
+      // Свой IP (provider «Свой IP») сохраняем при обновлении списка GeoHide —
+      // иначе ручная проверка пропадёт после «Обновить список».
+      // Выбор (selectedIp) сбрасывается useEffect, если узел пропал или стал Down.
+      setIps((prev) => {
+        const custom = prev.filter((r) => r.provider === "Свой IP");
+        const geoIps = new Set(result.map((r) => r.ip));
+        const kept = custom.filter((r) => !geoIps.has(r.ip));
+        const merged = [...result, ...kept];
+        merged.sort((a, b) => {
+          if (a.status !== b.status) return a.status === "Up" ? -1 : 1;
+          return (a.latency ?? Infinity) - (b.latency ?? Infinity);
+        });
+        return merged;
+      });
       const upCount = result.filter((ip) => ip.status === "Up").length;
       addLog(`[API] Получено IP: всего ${result.length}, в сети ${upCount}.`, "success");
       showToast(`Список обновлён: ${upCount} активных IP`, "success");
@@ -122,6 +179,30 @@ export default function App() {
       showToast("Не удалось получить список IP.", "error");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Сбрасываем выбор, если узел исчез или перестал быть «Up».
+  useEffect(() => {
+    if (!selectedIp) return;
+    const still = ips.find((r) => r.ip === selectedIp && r.status === "Up");
+    if (!still) setSelectedIp(null);
+  }, [ips, selectedIp]);
+
+  /** Добавить/обновить свой IP в списке и выбрать его для hosts. */
+  const handleCustomIpChecked = (record: IpRecord) => {
+    setIps((prev) => {
+      const without = prev.filter((r) => r.ip !== record.ip);
+      const next = [record, ...without];
+      next.sort((a, b) => {
+        if (a.status !== b.status) return a.status === "Up" ? -1 : 1;
+        return (a.latency ?? Infinity) - (b.latency ?? Infinity);
+      });
+      return next;
+    });
+    if (record.status === "Up") {
+      setSelectedIp(record.ip);
+      addLog(`[CUSTOM] Узел ${record.ip} выбран для записи в hosts.`, "info");
     }
   };
 
@@ -136,11 +217,18 @@ export default function App() {
   const doApply = async () => {
     setIsApplying(true);
     addLog("[SYSTEM] Запрос прав администратора для изменения hosts...", "info");
-    // Применяется один лучший узел (с наименьшей задержкой) — система
-    // всё равно использует только первую запись hosts для домена.
-    const best = pickBestIp(ips);
+    // Выбранный пользователем узел (если «Up») имеет приоритет; иначе — лучший по задержке.
+    // Система всё равно использует только первую запись hosts для домена.
+    const selectedUp =
+      selectedIp && ips.some((r) => r.ip === selectedIp && r.status === "Up")
+        ? selectedIp
+        : null;
+    const target = selectedUp ?? pickBestIp(ips);
+    if (selectedUp) {
+      addLog(`[SYSTEM] Применяется выбранный узел ${selectedUp}.`, "info");
+    }
     try {
-      const res = await window.api.apply(best ? [best] : []);
+      const res = await window.api.apply(target ? [target] : []);
       if (res.success) {
         setHostsActive(true);
         setActiveBlock(await window.api.getActiveBlock());
@@ -198,6 +286,10 @@ export default function App() {
   };
 
   const upCount = ips.filter((ip) => ip.status === "Up").length;
+  const applyTarget =
+    selectedIp && ips.some((r) => r.ip === selectedIp && r.status === "Up")
+      ? selectedIp
+      : pickBestIp(ips);
 
   return (
     <div className="min-h-screen bg-white/60 dark:bg-[#0c0c0c]/55 backdrop-blur-sm text-neutral-850 dark:text-neutral-100 flex flex-col items-center justify-center p-4 select-none selection:bg-[#1ED760]/30 selection:text-[#19B850] transition-all duration-300 relative overflow-x-hidden">
@@ -239,23 +331,29 @@ export default function App() {
           <div className="space-y-5">
           <div className="p-5 rounded-[20px] border transition-all duration-300 flex items-center gap-4 shadow-md bg-[#333333] dark:bg-[#2a292d] border-white/10 text-white">
             <div className="relative flex items-center justify-center flex-shrink-0">
-              <div className={`w-3 h-3 rounded-full transition-all duration-300 ${hostsActive ? "bg-[#1DB954] shadow-[0_0_12px_#1DB954]" : "bg-[#febc2e] shadow-[0_0_12px_#febc2e]"}`}></div>
+              <div className={`w-3 h-3 rounded-full transition-all duration-300 ${hostsActive === true ? "bg-[#1DB954] shadow-[0_0_12px_#1DB954]" : hostsActive === false ? "bg-[#febc2e] shadow-[0_0_12px_#febc2e]" : "bg-neutral-500"}`}></div>
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold tracking-tight text-white mb-0.5">
-                  {hostsActive ? "Перенаправления активны" : "Перенаправления не активны"}
+                  {hostsActive === null
+                    ? "Статус hosts неизвестен"
+                    : hostsActive
+                      ? "Перенаправления активны"
+                      : "Перенаправления не активны"}
                 </h2>
-                {hostsActive && (
+                {hostsActive === true && (
                   <span className="text-[10px] text-neutral-400 bg-neutral-800/80 px-2 py-0.5 rounded-md font-mono self-start">Активно</span>
                 )}
               </div>
               <p className="text-xs text-neutral-300/90 leading-relaxed font-medium">
-                {hostsActive
-                  ? activeBlock?.ip
-                    ? `Hosts перенаправляет ${activeBlock.domains.length} доменов на узел ${activeBlock.ip}`
-                    : "Hosts настроен через прокси-узел GeoHide"
-                  : "Запросы к Spotify идут через стандартный DNS. Примените перенаправления, чтобы восстановить синхронизацию презенса в Discord."}
+                {hostsActive === null
+                  ? "Не удалось прочитать файл hosts. Проверьте права доступа или повторите попытку."
+                  : hostsActive
+                    ? activeBlock?.ip
+                      ? `Hosts перенаправляет ${activeBlock.domains.length} доменов на узел ${activeBlock.ip}`
+                      : "Hosts настроен через прокси-узел GeoHide"
+                    : "Запросы к Spotify идут через стандартный DNS. Примените перенаправления, чтобы восстановить синхронизацию презенса в Discord."}
               </p>
             </div>
           </div>
@@ -274,7 +372,9 @@ export default function App() {
               ) : (
                 <>
                   <Play size={14} fill="currentColor" />
-                  Обновить и применить
+                  {selectedIp && applyTarget === selectedIp
+                    ? `Применить ${selectedIp}`
+                    : "Обновить и применить"}
                 </>
               )}
             </button>
@@ -321,7 +421,7 @@ export default function App() {
               Как это работает и что важно понимать
             </span>
             <p className="leading-relaxed">
-              Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси-узлы GeoHide. Изменения вносятся с правами администратора (появится запрос UAC), исходный hosts сохраняется в резервную копию, а блок можно удалить кнопкой «Сбросить hosts».
+              Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси-узлы GeoHide (или на свой IP, если вы его проверили и выбрали). Изменения вносятся с правами администратора (появится запрос UAC), исходный hosts сохраняется в резервную копию, а блок можно удалить кнопкой «Сбросить hosts».
             </p>
             <p className="leading-relaxed">
               Учтите: весь трафик указанных доменов Spotify, включая авторизацию, будет идти через серверы GeoHide — это сторонний сервис, и доверие к нему остаётся на ваше усмотрение. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
@@ -340,8 +440,25 @@ export default function App() {
           </div>
 
           <div className="space-y-5">
-          <IPList ips={ips} isLoading={isLoading} onRefresh={fetchIps} />
-          <HostsBlockPreview activeIps={ips} hostsActive={hostsActive} addLog={addLog} showToast={showToast} />
+          <IPList
+            ips={ips}
+            isLoading={isLoading}
+            onRefresh={fetchIps}
+            selectedIp={selectedIp}
+            onSelectIp={setSelectedIp}
+          />
+          <CustomIp
+            onChecked={handleCustomIpChecked}
+            addLog={addLog}
+            showToast={showToast}
+          />
+          <HostsBlockPreview
+            activeIps={ips}
+            hostsActive={hostsActive}
+            selectedIp={selectedIp}
+            addLog={addLog}
+            showToast={showToast}
+          />
           <TerminalLogs logs={logs} onClear={() => setLogs([])} />
           </div>
         </div>
@@ -429,7 +546,7 @@ export default function App() {
                 )}
                 <span className="text-neutral-800 dark:text-[#e6e1e5] font-semibold">{toast.message}</span>
               </div>
-              <button onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-[#e6e1e5] p-1 cursor-pointer">
+              <button onClick={() => dismissToast(toast.id)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-[#e6e1e5] p-1 cursor-pointer">
                 ✕
               </button>
             </motion.div>
