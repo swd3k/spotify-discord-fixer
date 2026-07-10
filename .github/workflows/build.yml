@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+# Node 20 на runners deprecated → 22 LTS (совместим с electron-builder).
+env:
+  NODE_VERSION: "22"
+
 jobs:
   # Проверка на каждый push в main и PR: ловит битые файлы и ошибки сборки
   # сразу, а не на этапе релиза.
@@ -25,7 +29,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
@@ -62,7 +66,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
@@ -101,7 +105,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
@@ -124,7 +128,8 @@ jobs:
 
   release-mac:
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    runs-on: macos-latest
+    # macos-14 = Apple Silicon runner; electron-builder сам кросс-собирает x64 + arm64.
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -132,7 +137,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
