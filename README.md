@@ -2,7 +2,31 @@
   <img src="docs/banner.png" alt="Spotify Discord Hosts Fixer" width="100%">
 </p>
 
-# 🎧 Spotify Discord Fixer
+<br>
+
+<h1 align="center">Spotify Discord Fixer</h1>
+
+<p align="center">
+  Восстанавливает статус «сейчас слушает Spotify» в Discord, перенаправляя домены Spotify через прокси в системном hosts.
+</p>
+
+<p align="center">
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" />
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" />
+  <img alt="status" src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" />
+  <a href="https://github.com/swd3k"><img alt="author" src="https://img.shields.io/badge/author-swd3k-24292e?style=flat-square&logo=github&logoColor=white" /></a>
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-43-47848F?style=flat-square&logo=electron&logoColor=white" />
+</p>
+
+<p align="center">
+  Developer: <a href="https://github.com/swd3k">swd3k</a>
+  ·
+  <a href="https://github.com/swd3k/spotify-discord-fixer/releases">Releases</a>
+  ·
+  <a href="LICENSE">MIT</a>
+</p>
+
+---
 
 > [!NOTE]
 > **Неофициальный** инструмент с открытым исходным кодом. Не связан со Spotify, Discord или GeoHide.  
@@ -12,8 +36,6 @@
 «🎧 сейчас слушает Spotify» в Discord, когда домены Spotify недоступны или медленные на вашем канале.
 Программа пишет в системный `hosts` блок, перенаправляющий домены Spotify на прокси-узлы GeoHide
 (или на IP, который вы укажете сами).
-
-**Разработчик:** [swd3k](https://github.com/swd3k) · **Лицензия:** [MIT](./LICENSE) · **Репозиторий:** [github.com/swd3k/spotify-discord-fixer](https://github.com/swd3k/spotify-discord-fixer)
 
 ---
 
