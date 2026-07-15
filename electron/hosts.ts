@@ -7,7 +7,6 @@ import { promises as fsp } from "node:fs";
 import sudo from "sudo-prompt";
 import {
   START_MARKER,
-  END_MARKER,
   validateIp,
   SPOTIFY_DOMAINS,
   buildBlock,
@@ -182,7 +181,7 @@ export function canWriteHostsDirectly(): boolean {
 export function backupHostsFile(srcPath: string): string {
   const dir = resolveBackupDir();
   fs.mkdirSync(dir, { recursive: true });
-  let name = backupFileName();
+  const name = backupFileName();
   let dest = path.join(dir, name);
   let n = 1;
   while (fs.existsSync(dest)) {
