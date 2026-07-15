@@ -11,8 +11,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/spotify-discord-fixer/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/swd3k/spotify-discord-fixer/ci.yml?branch=main&style=flat-square&label=CI" /></a>
+  <a href="https://github.com/swd3k/spotify-discord-fixer/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/swd3k/spotify-discord-fixer/build.yml?branch=main&style=flat-square&label=build" /></a>
   <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/swd3k/spotify-discord-fixer?style=flat-square&label=version" /></a>
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" />
   <img alt="status" src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" />
