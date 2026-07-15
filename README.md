@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="build/icon.png" alt="Spotify Discord Fixer" width="96" height="96">
+  <img src="docs/banner.png" alt="Spotify Discord Hosts Fixer" width="100%">
 </p>
 
 <br>
@@ -43,10 +43,6 @@
 <p align="center">
   <sub>Direct download: <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Hosts-Fixer-Setup-1.1.0-win-x64.exe"><code>Spotify-Discord-Hosts-Fixer-Setup-1.1.0-win-x64.exe</code></a>
   · macOS / Linux and portable builds on <a href="https://github.com/swd3k/spotify-discord-fixer/releases">GitHub Releases</a></sub>
-</p>
-
-<p align="center">
-  <img src="docs/banner.png" alt="Spotify Discord Hosts Fixer" width="100%">
 </p>
 
 ---
