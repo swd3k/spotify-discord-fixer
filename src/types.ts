@@ -26,6 +26,7 @@ export interface FixerApi {
   remove: () => Promise<ApplyResult>;
   getAutostart: () => Promise<boolean>;
   setAutostart: (enabled: boolean) => Promise<boolean>;
+  getHostsMeta: () => Promise<{ path: string; elevated: boolean; backupDir: string }>;
   onTrayMinimized: (cb: () => void) => () => void;
 }
 

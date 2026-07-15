@@ -1,7 +1,7 @@
 {
   "name": "spotify-discord-fixer",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Неофициальная программа для управления записями hosts (домены Spotify -> прокси GeoHide), чтобы восстановить синхронизацию презенса Spotify в Discord.",
   "author": {
     "name": "swd3k",
@@ -69,7 +69,7 @@
         "portable"
       ],
       "icon": "build/icon.ico",
-      "requestedExecutionLevel": "asInvoker",
+      "requestedExecutionLevel": "requireAdministrator",
       "artifactName": "Spotify-Discord-Hosts-Fixer-${version}-win-${arch}.${ext}"
     },
     "nsis": {

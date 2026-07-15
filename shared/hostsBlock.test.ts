@@ -7,6 +7,11 @@ import {
   extractBlock,
   pickBestIp,
   validateIp,
+  backupFileName,
+  formatBackupStamp,
+  normalizeIpList,
+  lineConflictsWithSpotifyDomains,
+  prepareHostsContent,
   type IpRecord,
 } from "./hostsBlock";
 
@@ -84,6 +89,87 @@ describe("pickBestIp", () => {
   it("узел без замера задержки проигрывает узлу с замером", () => {
     const best = pickBestIp([rec("1.1.1.1", "Up"), rec("2.2.2.2", "Up", 500)]);
     expect(best).toBe("2.2.2.2");
+  });
+});
+
+describe("SPOTIFY_DOMAINS", () => {
+  it("включает CDN-домены i.scdn.co и spotifycdn.com (S8)", () => {
+    expect(SPOTIFY_DOMAINS).toContain("i.scdn.co");
+    expect(SPOTIFY_DOMAINS).toContain("spotifycdn.com");
+  });
+});
+
+describe("backupFileName", () => {
+  it("формат hosts_backup_YYYY-MM-DD_HH-mm.txt без секунд (S2)", () => {
+    const d = new Date(2026, 6, 15, 9, 5, 33);
+    expect(formatBackupStamp(d)).toBe("2026-07-15_09-05");
+    expect(backupFileName(d)).toBe("hosts_backup_2026-07-15_09-05.txt");
+    expect(backupFileName(d)).toMatch(/^hosts_backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.txt$/);
+  });
+});
+
+describe("normalizeIpList", () => {
+  it("принимает строки и объекты {ip}, отбрасывает мусор (S4)", () => {
+    expect(normalizeIpList(["1.2.3.4", null, 5, { ip: "5.6.7.8" }, { ip: "bad" }])).toEqual([
+      "1.2.3.4",
+      "5.6.7.8",
+    ]);
+    expect(normalizeIpList({ ip: "1.2.3.4" })).toEqual([]);
+    expect(normalizeIpList("8.8.8.8")).toEqual(["8.8.8.8"]);
+  });
+});
+
+describe("lineConflictsWithSpotifyDomains", () => {
+  it("находит Spotify-домены, игнорирует комментарии и localhost", () => {
+    expect(lineConflictsWithSpotifyDomains("8.8.8.8 open.spotify.com")).toBe(true);
+    expect(lineConflictsWithSpotifyDomains("1.1.1.1 api.spotify.com # note")).toBe(true);
+    expect(lineConflictsWithSpotifyDomains("9.9.9.9 Open.Spotify.Com")).toBe(true);
+    expect(lineConflictsWithSpotifyDomains("# 1.1.1.1 open.spotify.com")).toBe(false);
+    expect(lineConflictsWithSpotifyDomains("127.0.0.1 localhost")).toBe(false);
+    expect(lineConflictsWithSpotifyDomains("")).toBe(false);
+  });
+});
+
+describe("prepareHostsContent", () => {
+  it("при apply снимает старые Spotify-строки и managed-блок, пишет новый блок первым после остального", () => {
+    const oldBlock = buildBlock(["1.1.1.1"]);
+    const before = [
+      "127.0.0.1 localhost",
+      "8.8.8.8 open.spotify.com",
+      "9.9.9.9 api.spotify.com",
+      "10.0.0.1 my-game.local",
+      oldBlock,
+      "",
+    ].join("\n");
+    const newBlock = buildBlock(["95.182.120.241"]);
+    const { content, strippedConflicts, removedManagedBlock } = prepareHostsContent(
+      before,
+      "apply",
+      newBlock,
+    );
+    expect(removedManagedBlock).toBe(true);
+    expect(strippedConflicts).toBe(2);
+    expect(content).toContain("127.0.0.1 localhost");
+    expect(content).toContain("10.0.0.1 my-game.local");
+    expect(content).not.toContain("8.8.8.8 open.spotify.com");
+    expect(content).not.toContain("9.9.9.9 api.spotify.com");
+    expect(content).not.toContain("1.1.1.1 open.spotify.com");
+    expect(content).toContain("95.182.120.241 open.spotify.com");
+    // Единственная запись open.spotify.com — наша
+    const openLines = content.split("\n").filter((l) => /open\.spotify\.com/i.test(l) && !l.trim().startsWith("#"));
+    expect(openLines).toHaveLength(1);
+    expect(openLines[0].startsWith("95.182.120.241")).toBe(true);
+  });
+
+  it("при remove убирает только managed-блок, чужие Spotify-строки оставляет", () => {
+    const block = buildBlock(["1.1.1.1"]);
+    const before = `127.0.0.1 localhost\n8.8.8.8 open.spotify.com\n${block}\n`;
+    const { content, strippedConflicts, removedManagedBlock } = prepareHostsContent(before, "remove");
+    expect(removedManagedBlock).toBe(true);
+    expect(strippedConflicts).toBe(0);
+    expect(content).toContain("8.8.8.8 open.spotify.com");
+    expect(content).not.toContain(START_MARKER);
+    expect(content).not.toContain("1.1.1.1 open.spotify.com");
   });
 });
 

@@ -1,14 +1,24 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, Tray, Menu, nativeImage, screen } from "electron";
 import path from "node:path";
 import fs from "node:fs";
-import { getIps, getStatus, applyHosts, removeHosts, buildBlock, getActiveBlock, pingIp } from "./hosts";
-import { validateIp } from "../shared/hostsBlock";
+import {
+  getIps,
+  getStatus,
+  applyHosts,
+  removeHosts,
+  buildBlock,
+  getActiveBlock,
+  pingIp,
+  canWriteHostsDirectly,
+  hostsPath,
+  setHostsBackupDir,
+  resolveBackupDir,
+} from "./hosts";
+import { normalizeIpList } from "../shared/hostsBlock";
 
-// Приводит произвольный аргумент IPC к массиву валидных IPv4-адресов.
-// Любые нестроковые/невалидные элементы отбрасываются — это входная граница из рендерера.
+// S4: единая нормализация IPC → валидные IPv4 (object/null не проходят).
 function asIpArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => validateIp(item));
+  return normalizeIpList(value);
 }
 
 const isDev = !app.isPackaged && process.env.VITE_DEV_SERVER_URL;
@@ -153,9 +163,14 @@ function toggleWindow() {
 }
 
 function createTray() {
+  // 16×16 tray slot: scale from high-res tray asset with quality so glyph fills the cell.
   let image = nativeImage.createFromPath(assetPath("tray.png"));
+  if (image.isEmpty()) {
+    image = nativeImage.createFromPath(assetPath("icon.png"));
+  }
   if (!image.isEmpty()) {
-    image = image.resize({ width: 16, height: 16 });
+    // Prefer crisp 16×16; quality option keeps edges when downscaling larger sources.
+    image = image.resize({ width: 16, height: 16, quality: "best" });
   }
   tray = new Tray(image);
   tray.setToolTip("Spotify Discord Hosts Fixer");
@@ -248,10 +263,19 @@ function setupAutoUpdater() {
 ipcMain.handle("get-ips", async () => getIps());
 ipcMain.handle("get-status", async () => getStatus());
 ipcMain.handle("get-active-block", async () => getActiveBlock());
-ipcMain.handle("ping-ip", async (_e, ip: unknown) => pingIp(typeof ip === "string" ? ip : ""));
+ipcMain.handle("ping-ip", async (_e, ip: unknown) => {
+  // S4: только строка-IP; object/array → null без crash.
+  if (typeof ip !== "string") return null;
+  return pingIp(ip);
+});
 ipcMain.handle("get-block-text", async (_e, ips: unknown) => buildBlock(asIpArray(ips)));
-ipcMain.handle("apply", async (_e, ips: unknown) => applyHosts(asIpArray(ips)));
+ipcMain.handle("apply", async (_e, ips: unknown) => applyHosts(ips));
 ipcMain.handle("remove", async () => removeHosts());
+ipcMain.handle("get-hosts-meta", async () => ({
+  path: hostsPath(),
+  elevated: canWriteHostsDirectly(),
+  backupDir: resolveBackupDir(),
+}));
 
 // IPC: автозапуск вместе с системой (свёрнуто в трей).
 // На Windows args нужно передавать и при чтении, иначе запись в реестре не сматчится.
@@ -273,6 +297,8 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    // Бэкапы hosts → папка «Загрузки» (Downloads).
+    setHostsBackupDir(app.getPath("downloads"));
     // Нужен для корректных уведомлений и группировки в панели задач Windows.
     app.setAppUserModelId("com.geohide.spotify-discord-hosts-fixer");
     // Убираем стандартное системное меню (File/Edit/View/Window/Help).

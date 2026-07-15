@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/swd3k/spotify-discord-fixer/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/swd3k/spotify-discord-fixer/ci.yml?branch=main&style=flat-square&label=CI" /></a>
+  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/swd3k/spotify-discord-fixer?style=flat-square&label=version" /></a>
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" />
   <img alt="status" src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" />
@@ -69,11 +71,13 @@
 1. Резолвит `geohide.ru`, собирает IP прокси-узлов и проверяет доступность по **TCP :443**.  
 2. Позволяет **ввести свой IPv4**, проверить его тем же способом и выбрать для `hosts`.  
 3. По **«Обновить и применить»** (если узел выбран — на кнопке показывается его IP) запрашивает UAC,
-   делает бэкап `hosts` (`hosts.backup.<дата_время>`) и пишет блок между маркерами  
-   `#spotify-discord-hosts` … `#end-spotify-discord-hosts`.  
+   **сначала** сохраняет бэкап `hosts_backup_YYYY-MM-DD_HH-mm.txt` в папку **Загрузки** (путь в сообщении об успехе),
+   **удаляет** старый блок SDF и **конфликтующие** строки Spotify (hosts берёт только **первую** запись по имени),
+   затем пишет новый блок `#spotify-discord-hosts` … `#end-spotify-discord-hosts`
+   **только** в `%SystemRoot%\System32\drivers\etc\hosts`.  
 4. В `hosts` попадает **один** узел (выбранный или лучший по задержке). После записи проверяется
    перенаправление; активный узел периодически мониторится.  
-5. **«Сбросить hosts»** удаляет блок и возвращает стандартный DNS; кэш DNS сбрасывается.
+5. **«Сбросить hosts»** удаляет блок SDF (ручные Spotify-строки вне блока не трогает); кэш DNS сбрасывается.
 
 ---
 

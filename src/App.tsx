@@ -37,6 +37,8 @@ export default function App() {
 
   // Чтобы предупреждение «узел отвалился» не сыпалось каждые 90 секунд.
   const warnedDownRef = useRef(false);
+  // S7: IP, которые пользователь убрал вручную (не возвращать при refresh).
+  const dismissedIpsRef = useRef<Set<string>>(new Set());
 
   // Очередь тостов с ограничением: держим не более 5, чтобы при серии операций
   // они не накапливались бесконечно. Таймауты чистим при размонтировании.
@@ -88,6 +90,18 @@ export default function App() {
     refreshStatus();
     fetchIps();
     window.api.getAutostart().then(setAutostart).catch(() => {});
+    window.api
+      .getHostsMeta()
+      .then((meta) => {
+        addLog(
+          `[SYSTEM] hosts: ${meta.path}${meta.elevated ? " (есть права на запись)" : " (потребуется UAC)"}`,
+          meta.elevated ? "success" : "info",
+        );
+        if (meta.backupDir) {
+          addLog(`[SYSTEM] Бэкапы hosts: ${meta.backupDir}`, "info");
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Одноразовая подсказка при первом сворачивании в трей: закрытие крестиком
@@ -163,8 +177,9 @@ export default function App() {
       setIps((prev) => {
         const custom = prev.filter((r) => r.provider === "Свой IP");
         const geoIps = new Set(result.map((r) => r.ip));
-        const kept = custom.filter((r) => !geoIps.has(r.ip));
-        const merged = [...result, ...kept];
+        const kept = custom.filter((r) => !geoIps.has(r.ip) && !dismissedIpsRef.current.has(r.ip));
+        const filtered = result.filter((r) => !dismissedIpsRef.current.has(r.ip));
+        const merged = [...filtered, ...kept];
         merged.sort((a, b) => {
           if (a.status !== b.status) return a.status === "Up" ? -1 : 1;
           return (a.latency ?? Infinity) - (b.latency ?? Infinity);
@@ -362,29 +377,40 @@ export default function App() {
             <button
               onClick={handleApplyFix}
               disabled={isApplying || isRemoving || upCount === 0}
-              className="h-[48px] bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-neutral-200 dark:disabled:bg-[#333333] text-[#003912] font-semibold rounded-full transition-all duration-200 shadow-md flex items-center justify-center gap-2 text-sm disabled:text-neutral-500 cursor-pointer active:scale-[0.98]"
+              className="h-[48px] px-4 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-neutral-200 dark:disabled:bg-[#333333] text-[#003912] font-semibold rounded-full transition-all duration-200 shadow-md inline-flex items-center justify-center gap-2 text-sm disabled:text-neutral-500 cursor-pointer active:scale-[0.98] min-w-0"
             >
               {isApplying ? (
-                <>
-                  <RefreshCw size={15} className="animate-spin text-[#003912]" />
-                  Применяю...
-                </>
+                <span className="inline-flex items-center gap-2">
+                  <RefreshCw size={15} className="animate-spin shrink-0" strokeWidth={2.5} aria-hidden />
+                  <span>Применяю…</span>
+                </span>
               ) : (
-                <>
-                  <Play size={14} fill="currentColor" />
-                  {selectedIp && applyTarget === selectedIp
-                    ? `Применить ${selectedIp}`
-                    : "Обновить и применить"}
-                </>
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <Play size={14} fill="currentColor" className="shrink-0" aria-hidden />
+                  <span className="truncate">
+                    {selectedIp && applyTarget === selectedIp
+                      ? `Применить ${selectedIp}`
+                      : "Обновить и применить"}
+                  </span>
+                </span>
               )}
             </button>
             <button
               onClick={handleRemoveFix}
               disabled={isApplying || isRemoving || !hostsActive}
-              className="h-[48px] border border-neutral-300 dark:border-[#49454f] bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800/40 text-[#1DB954] disabled:opacity-30 disabled:pointer-events-none font-semibold rounded-full transition-all duration-200 text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+              className="h-[48px] px-4 border border-neutral-300 dark:border-[#49454f] bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800/40 text-[#1DB954] disabled:opacity-30 disabled:pointer-events-none font-semibold rounded-full transition-all duration-200 text-sm inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
-              {isRemoving ? <RefreshCw size={15} className="animate-spin" /> : <Trash2 size={15} />}
-              Сбросить hosts
+              {isRemoving ? (
+                <span className="inline-flex items-center gap-2">
+                  <RefreshCw size={15} className="animate-spin shrink-0" strokeWidth={2.5} aria-hidden />
+                  <span>Сбрасываю…</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <Trash2 size={15} className="shrink-0" aria-hidden />
+                  <span>Сбросить hosts</span>
+                </span>
+              )}
             </button>
           </div>
 
@@ -446,6 +472,12 @@ export default function App() {
             onRefresh={fetchIps}
             selectedIp={selectedIp}
             onSelectIp={setSelectedIp}
+            onRemoveIp={(ip) => {
+              dismissedIpsRef.current.add(ip);
+              setIps((prev) => prev.filter((r) => r.ip !== ip));
+              if (selectedIp === ip) setSelectedIp(null);
+              addLog(`[LIST] Узел ${ip} удалён из списка.`, "info");
+            }}
           />
           <CustomIp
             onChecked={handleCustomIpChecked}

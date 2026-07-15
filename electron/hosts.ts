@@ -12,21 +12,75 @@ import {
   SPOTIFY_DOMAINS,
   buildBlock,
   extractBlock,
+  backupFileName,
+  normalizeIpList,
+  prepareHostsContent,
   type IpRecord,
   type ParsedBlock,
 } from "../shared/hostsBlock";
 
-export { START_MARKER, END_MARKER, SPOTIFY_DOMAINS, buildBlock } from "../shared/hostsBlock";
+export {
+  START_MARKER,
+  END_MARKER,
+  SPOTIFY_DOMAINS,
+  buildBlock,
+  backupFileName,
+  formatBackupStamp,
+  normalizeIpList,
+  prepareHostsContent,
+  lineConflictsWithSpotifyDomains,
+} from "../shared/hostsBlock";
 export type { IpRecord, ParsedBlock } from "../shared/hostsBlock";
 
 // Резервные адреса на случай, если резолв geohide.ru не сработал.
-const FALLBACK_IPS = ["37.230.192.51", "45.155.204.190", "185.162.248.51"];
+// 95.182.120.241 — узел из ТЗ (S5), должен присутствовать в списке даже при сбое DNS.
+const FALLBACK_IPS = ["37.230.192.51", "45.155.204.190", "185.162.248.51", "95.182.120.241"];
 
+/** Единственный целевой hosts (S1): %SystemRoot%\System32\drivers\etc\hosts на Windows. */
 export function hostsPath(): string {
   if (process.platform === "win32") {
-    return path.join(process.env.SystemRoot || "C:\\Windows", "System32", "drivers", "etc", "hosts");
+    const root = process.env.SystemRoot || process.env.windir || "C:\\Windows";
+    return path.join(root, "System32", "drivers", "etc", "hosts");
   }
   return "/etc/hosts";
+}
+
+/**
+ * Каталог бэкапов: папка «Загрузки» (Downloads).
+ * НЕ System32\drivers\etc (EPERM). Задаётся из main через app.getPath("downloads").
+ */
+let backupDirOverride: string | null = null;
+
+export function setHostsBackupDir(dir: string): void {
+  backupDirOverride = dir;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Fallback: USERPROFILE\Downloads или ~/Downloads. */
+function defaultDownloadsDir(): string {
+  if (process.platform === "win32") {
+    const userProfile = process.env.USERPROFILE || os.homedir();
+    return path.join(userProfile, "Downloads");
+  }
+  return path.join(os.homedir(), "Downloads");
+}
+
+export function resolveBackupDir(): string {
+  if (backupDirOverride) {
+    try {
+      fs.mkdirSync(backupDirOverride, { recursive: true });
+    } catch {
+      /* ignore */
+    }
+    return backupDirOverride;
+  }
+  const dir = defaultDownloadsDir();
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 // Простая TCP-проверка доступности узла на :443 с замером задержки.
@@ -106,59 +160,106 @@ export async function getActiveBlock(): Promise<ParsedBlock | null> {
   }
 }
 
-const WIN_SCRIPT = `param([string]$Action, [string]$BlockFile)
+/**
+ * Реальная проверка: access(W_OK) на Windows часто врёт.
+ * Пробуем открыть hosts на чтение+запись (r+) — только у elevated/root.
+ */
+export function canWriteHostsDirectly(): boolean {
+  const hp = hostsPath();
+  try {
+    const fd = fs.openSync(hp, "r+");
+    fs.closeSync(fd);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Бэкап hosts ВСЕГДА в папку «Загрузки» (Downloads).
+ * Не пишем рядом с system hosts — там EPERM. Возвращает полный путь к файлу.
+ */
+export function backupHostsFile(srcPath: string): string {
+  const dir = resolveBackupDir();
+  fs.mkdirSync(dir, { recursive: true });
+  let name = backupFileName();
+  let dest = path.join(dir, name);
+  let n = 1;
+  while (fs.existsSync(dest)) {
+    const base = name.replace(/\.txt$/i, "");
+    dest = path.join(dir, `${base}_${n}.txt`);
+    n += 1;
+  }
+  // Читаем как буфер — на случай нестандартной кодировки/размера.
+  const data = fs.readFileSync(srcPath);
+  fs.writeFileSync(dest, data);
+  // Проверка: пустой/несозданный файл = ошибка.
+  if (!fs.existsSync(dest) || (fs.statSync(dest).size === 0 && data.length > 0)) {
+    throw new Error(`Не удалось создать бэкап hosts: ${dest}`);
+  }
+  try {
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith("hosts_backup_") && f.endsWith(".txt"))
+      .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
+      .sort((a, b) => b.t - a.t);
+    for (const old of files.slice(5)) {
+      try {
+        fs.unlinkSync(path.join(dir, old.f));
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* ignore prune */
+  }
+  return dest;
+}
+
+/**
+ * Итоговый hosts готовится в Node (prepareHostsContent) — единая логика:
+ * снять managed-блок + при apply чужие Spotify-строки, затем новый блок.
+ * Elevated-скрипт только: записать готовый файл в system hosts.
+ */
+function buildPreparedHosts(action: "apply" | "remove", block = ""): {
+  content: string;
+  strippedConflicts: number;
+  removedManagedBlock: boolean;
+} {
+  const hp = hostsPath();
+  const raw = fs.existsSync(hp) ? fs.readFileSync(hp, "utf-8") : "";
+  return prepareHostsContent(raw, action, block);
+}
+
+async function flushDns(): Promise<void> {
+  if (process.platform !== "win32") return;
+  try {
+    const { execFile } = await import("node:child_process");
+    await new Promise<void>((resolve) => {
+      execFile("ipconfig", ["/flushdns"], () => resolve());
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+// Elevated: только установка готового hosts (бэкап уже сделан в Node).
+const WIN_SCRIPT = `param([string]$ContentFile)
 $ErrorActionPreference = "Stop"
 $hostsPath = Join-Path $env:SystemRoot "System32\\drivers\\etc\\hosts"
-$startMarker = "${START_MARKER}"
-$endMarker = "${END_MARKER}"
-
-$ts = Get-Date -Format "yyyyMMdd_HHmmss"
-Copy-Item -LiteralPath $hostsPath -Destination "$hostsPath.backup.$ts" -Force
-
-# Оставляем только последние 5 резервных копий hosts — старые удаляем, чтобы
-# папка etc не заполнялась бесконечно при многократных применениях.
-Get-ChildItem "$hostsPath.backup.*" -ErrorAction SilentlyContinue |
-  Sort-Object LastWriteTime -Descending |
-  Select-Object -Skip 5 |
-  Remove-Item -Force -ErrorAction SilentlyContinue
-
-$lines = @()
-if (Test-Path -LiteralPath $hostsPath) { $lines = Get-Content -LiteralPath $hostsPath }
-$out = New-Object System.Collections.Generic.List[string]
-$skip = $false
-foreach ($line in $lines) {
-  if ($line -like "*$startMarker*") { $skip = $true; continue }
-  if ($line -like "*$endMarker*") { $skip = $false; continue }
-  if (-not $skip) { $out.Add($line) }
-}
-if ($Action -eq "apply") {
-  $block = Get-Content -LiteralPath $BlockFile -Raw
-  $out.Add("")
-  $out.Add($block.TrimEnd())
-}
-Set-Content -LiteralPath $hostsPath -Value $out -Encoding ASCII
+if (-not (Test-Path -LiteralPath $hostsPath)) { throw "System hosts not found: $hostsPath" }
+if (-not (Test-Path -LiteralPath $ContentFile)) { throw "Prepared hosts not found: $ContentFile" }
+Copy-Item -LiteralPath $ContentFile -Destination $hostsPath -Force
 try { ipconfig /flushdns | Out-Null } catch {}
 Write-Output "OK"
 `;
 
 const UNIX_SCRIPT = `#!/bin/bash
 set -e
-ACTION="$1"
-BLOCK_FILE="$2"
+CONTENT_FILE="$1"
 HOSTS="/etc/hosts"
-TS=$(date +%Y%m%d_%H%M%S)
-cp "$HOSTS" "$HOSTS.backup.$TS"
-# Оставляем только последние 5 резервных копий hosts.
-ls -1t "$HOSTS".backup.* 2>/dev/null | tail -n +6 | xargs -r rm -f
-TMP=$(mktemp)
-awk '/${START_MARKER}/{skip=1;next} /${END_MARKER}/{skip=0;next} !skip{print}' "$HOSTS" > "$TMP"
-if [ "$ACTION" = "apply" ]; then
-  echo "" >> "$TMP"
-  cat "$BLOCK_FILE" >> "$TMP"
-fi
-cp "$TMP" "$HOSTS"
+cp "$CONTENT_FILE" "$HOSTS"
 chmod 644 "$HOSTS"
-rm -f "$TMP"
 ( dscacheutil -flushcache 2>/dev/null; killall -HUP mDNSResponder 2>/dev/null ) || true
 echo "OK"
 `;
@@ -175,27 +276,52 @@ function runElevated(command: string): Promise<string> {
   });
 }
 
-async function runHostsAction(action: "apply" | "remove", block = ""): Promise<void> {
+async function runHostsAction(
+  action: "apply" | "remove",
+  block = "",
+): Promise<{ strippedConflicts: number; backupPath: string }> {
+  // 1) Бэкап всегда в Node (hosts читается без admin; запись в Downloads).
+  const hp = hostsPath();
+  if (!fs.existsSync(hp)) {
+    throw new Error(`Файл hosts не найден: ${hp}`);
+  }
+  const backupPath = backupHostsFile(hp);
+
+  // 2) Готовим содержимое.
+  const prepared = buildPreparedHosts(action, block);
+
+  // 3) Пишем system hosts (direct или UAC).
+  if (canWriteHostsDirectly()) {
+    try {
+      fs.writeFileSync(hp, prepared.content, { encoding: "utf-8" });
+      await flushDns();
+      return { strippedConflicts: prepared.strippedConflicts, backupPath };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/EPERM|EACCES|permission|denied|отказ/i.test(msg)) throw e;
+    }
+  }
+
   const tmp = os.tmpdir();
   const isWin = process.platform === "win32";
-  const scriptPath = path.join(tmp, isWin ? "spf_hosts.ps1" : "spf_hosts.sh");
-  const blockPath = path.join(tmp, "spf_block.txt");
+  const scriptPath = path.join(tmp, isWin ? "spf_hosts_install.ps1" : "spf_hosts_install.sh");
+  const contentPath = path.join(tmp, "spf_hosts_prepared.txt");
 
+  fs.writeFileSync(contentPath, prepared.content, "utf-8");
   fs.writeFileSync(scriptPath, isWin ? WIN_SCRIPT : UNIX_SCRIPT, "utf-8");
-  if (action === "apply") {
-    fs.writeFileSync(blockPath, block, "utf-8");
-  }
 
   let command: string;
   if (isWin) {
+    const q = (s: string) => `"${s.replace(/"/g, '`"')}"`;
     command =
-      `powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${scriptPath}" -Action ${action}` +
-      (action === "apply" ? ` -BlockFile "${blockPath}"` : "");
+      `powershell.exe -ExecutionPolicy Bypass -NoProfile -File ${q(scriptPath)}` +
+      ` -ContentFile ${q(contentPath)}`;
   } else {
-    command = `/bin/bash "${scriptPath}" ${action} "${action === "apply" ? blockPath : ""}"`;
+    command = `/bin/bash "${scriptPath}" "${contentPath}"`;
   }
 
   await runElevated(command);
+  return { strippedConflicts: prepared.strippedConflicts, backupPath };
 }
 
 // Проверка после применения: резолвим домен через системный резолвер
@@ -209,33 +335,53 @@ async function verifyRedirect(domain: string, expectedIp: string): Promise<boole
   }
 }
 
-export async function applyHosts(ips: string[]): Promise<{ success: boolean; message: string }> {
-  const ip = ips.find((candidate) => validateIp(candidate));
+export async function applyHosts(ips: unknown): Promise<{ success: boolean; message: string }> {
+  const list = normalizeIpList(ips);
+  const ip = list[0];
   if (!ip) {
     return { success: false, message: "Нет валидных IP для применения." };
   }
   try {
-    await runHostsAction("apply", buildBlock([ip]));
+    const { strippedConflicts, backupPath } = await runHostsAction("apply", buildBlock([ip]));
 
     const checkDomain = SPOTIFY_DOMAINS[0];
     const verified = await verifyRedirect(checkDomain, ip);
     const verifyNote = verified
       ? `Проверка: ${checkDomain} → ${ip}, перенаправление работает.`
       : `Внимание: проверка ${checkDomain} не подтвердила перенаправление (возможно, нужен сброс кэша DNS).`;
+    const stripNote =
+      strippedConflicts > 0
+        ? ` Удалено старых конфликтующих записей Spotify: ${strippedConflicts}.`
+        : "";
     return {
       success: true,
-      message: `Применён узел ${ip} для ${SPOTIFY_DOMAINS.length} доменов. ${verifyNote} Перезапустите Discord и Spotify.`,
+      message:
+        `Применён узел ${ip} для ${SPOTIFY_DOMAINS.length} доменов.${stripNote} ` +
+        `Бэкап: ${backupPath}. ${verifyNote} Перезапустите Discord и Spotify.`,
     };
-  } catch (e: any) {
-    return { success: false, message: e?.message || "Не удалось изменить hosts (отменено или нет прав)." };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Не удалось изменить hosts (отменено или нет прав).";
+    return {
+      success: false,
+      message: `${msg} Запустите программу от имени администратора.`,
+    };
   }
 }
 
 export async function removeHosts(): Promise<{ success: boolean; message: string }> {
   try {
-    await runHostsAction("remove");
-    return { success: true, message: "Блок #spotify-discord-hosts удалён. Восстановлен стандартный DNS." };
-  } catch (e: any) {
-    return { success: false, message: e?.message || "Не удалось очистить hosts (отменено или нет прав)." };
+    const { backupPath } = await runHostsAction("remove");
+    return {
+      success: true,
+      message:
+        `Блок #spotify-discord-hosts удалён. Восстановлен стандартный DNS. ` +
+        `Бэкап: ${backupPath}. Ручные Spotify-строки вне блока не трогались.`,
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Не удалось очистить hosts (отменено или нет прав).";
+    return {
+      success: false,
+      message: `${msg} Запустите программу от имени администратора.`,
+    };
   }
 }
