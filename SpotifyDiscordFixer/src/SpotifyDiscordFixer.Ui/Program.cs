@@ -64,8 +64,8 @@ internal static class Program
             window
                 .SetTitle(SingleInstance.WindowTitle)
                 .SetUseOsDefaultSize(false)
-                .SetSize(new System.Drawing.Size(1080, 720))
-                .SetMinSize(900, 620)
+                .SetSize(new System.Drawing.Size(1060, 740))
+                .SetMinSize(720, 560)
                 .Center()
                 .SetResizable(true)
                 .SetMinimized(_startHidden)

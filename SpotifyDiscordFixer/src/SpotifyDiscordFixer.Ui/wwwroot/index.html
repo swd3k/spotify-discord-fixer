@@ -110,30 +110,35 @@
             </div>
           </div>
 
-          <div class="info-block">
-            <div class="info-title">
+          <details class="info-block">
+            <summary>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
               </svg>
-              Как это работает и что важно понимать
+              <span>Как это работает</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </summary>
+            <div class="info-body">
+              <p>
+                Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси GeoHide (или ваш IP). Нужны права администратора (UAC); перед изменением создаётся резервная копия.
+              </p>
+              <p>
+                Трафик указанных доменов (включая авторизацию) идёт через сторонний сервис. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
+              </p>
+              <button type="button" class="info-link" onclick="openGithub()">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 .3C5.37.3 0 5.67 0 12.3c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.3C24 5.67 18.63.3 12 .3z"/>
+                </svg>
+                Исходный код на GitHub
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              </button>
+              <div class="meta" id="hostsMeta" style="margin-top:10px"></div>
             </div>
-            <p>
-              Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси-узлы GeoHide (или на свой IP). Изменения вносятся с правами администратора (UAC), исходный hosts сохраняется в резервную копию.
-            </p>
-            <p>
-              Учтите: трафик указанных доменов, включая авторизацию, пойдёт через сторонний сервис. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
-            </p>
-            <button type="button" class="info-link" onclick="openGithub()">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 .3C5.37.3 0 5.67 0 12.3c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.3C24 5.67 18.63.3 12 .3z"/>
-              </svg>
-              Помощь и исходный код на GitHub
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-            </button>
-            <div class="meta" id="hostsMeta" style="margin-top:10px"></div>
-          </div>
+          </details>
         </div>
 
         <!-- Right: IP list, custom, preview, logs -->
@@ -237,16 +242,16 @@
       </div>
 
       <div class="ftr">
-        <span>Неофициальный инструмент с открытым кодом</span>
-        <span>Используйте на свой риск</span>
+        <span>Неофициальный open-source · на свой риск</span>
+        <a href="#" onclick="openGithub(); return false;">GitHub</a>
       </div>
     </div>
   </div>
 
-  <div class="toast-wrap" id="toasts"></div>
+  <div class="toast-wrap" id="toasts" aria-live="polite"></div>
 
-  <div class="modal-bg" id="consentModal" hidden>
-    <div class="modal" role="dialog" aria-labelledby="consentTitle" aria-modal="true">
+  <div class="modal-bg" id="consentModal" hidden onclick="if(event.target===this)closeConsent()">
+    <div class="modal" role="dialog" aria-labelledby="consentTitle" aria-modal="true" onclick="event.stopPropagation()">
       <h2 class="modal-title" id="consentTitle">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -259,7 +264,7 @@
         <p>Будут перенаправлены в том числе домены авторизации (accounts.spotify.com, login5.spotify.com).</p>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn" onclick="document.getElementById('consentModal').hidden=true">Отмена</button>
+        <button type="button" class="btn" onclick="closeConsent()">Отмена</button>
         <button type="button" class="btn primary" onclick="acceptConsent()">Понимаю, применить</button>
       </div>
     </div>
@@ -429,14 +434,43 @@
       setTimeout(() => el.remove(), 4000);
     }
 
-    function setBusy(on) {
+    function setBusy(on, mode) {
       busy = !!on;
-      ['btnApply', 'btnRemove', 'btnRefresh', 'btnCustom'].forEach(id => {
-        const b = document.getElementById(id);
-        if (b) b.disabled = busy || (id === 'btnRefresh' && loadingIps);
-      });
+      updateActionButtons(mode);
       const ri = document.getElementById('refreshIcon');
       if (ri) ri.style.animation = (busy || loadingIps) ? 'spin 0.9s linear infinite' : '';
+    }
+
+    /** Unified disabled/loading state for primary actions (fixes race setBusy vs renderStatus). */
+    function updateActionButtons(mode) {
+      const upCount = ips.filter(x => x.status === 'Up').length;
+      const ba = document.getElementById('btnApply');
+      const br = document.getElementById('btnRemove');
+      const brf = document.getElementById('btnRefresh');
+      const bc = document.getElementById('btnCustom');
+      const label = document.getElementById('btnApplyLabel');
+
+      if (ba) {
+        ba.disabled = busy || upCount === 0;
+        ba.classList.toggle('is-busy', busy && (mode === 'apply' || mode === true));
+      }
+      if (br) br.disabled = busy || hostsActive !== true;
+      if (brf) brf.disabled = busy || loadingIps;
+      if (bc) bc.disabled = busy;
+
+      if (label && !busy) {
+        const t = applyTarget();
+        if (selectedIp && t === selectedIp) label.textContent = 'Применить ' + t;
+        else label.textContent = t ? 'Обновить и применить · ' + t : 'Обновить и применить';
+      } else if (label && busy && (mode === 'apply' || mode === true)) {
+        label.textContent = 'Применяю…';
+      }
+
+      // Remove button label feedback
+      const brLabel = br && br.querySelector('.label');
+      if (brLabel) {
+        brLabel.textContent = (busy && mode === 'remove') ? 'Сбрасываю…' : 'Сбросить hosts';
+      }
     }
 
     function validateIp(ip) {
@@ -494,19 +528,7 @@
         sub.textContent = 'Не удалось прочитать файл hosts. Проверьте права доступа или повторите попытку.';
       }
 
-      const t = applyTarget();
-      const label = document.getElementById('btnApplyLabel');
-      if (selectedIp && t === selectedIp) {
-        label.textContent = `Применить ${t}`;
-      } else {
-        label.textContent = t ? `Обновить и применить · ${t}` : 'Обновить и применить';
-      }
-
-      const upCount = ips.filter(x => x.status === 'Up').length;
-      const ba = document.getElementById('btnApply');
-      if (ba && !busy) ba.disabled = upCount === 0;
-      const br = document.getElementById('btnRemove');
-      if (br && !busy) br.disabled = !hostsActive;
+      updateActionButtons();
     }
 
     /* —— IP list (S7 dismiss) —— */
@@ -753,49 +775,69 @@
 
     function handleApply() {
       if (!localStorage.getItem(CONSENT_KEY)) {
-        document.getElementById('consentModal').hidden = false;
+        openConsent();
         return;
       }
       doApply();
     }
 
+    function openConsent() {
+      const m = document.getElementById('consentModal');
+      m.hidden = false;
+      const ok = m.querySelector('.btn.primary');
+      if (ok) setTimeout(() => ok.focus(), 50);
+    }
+
+    function closeConsent() {
+      document.getElementById('consentModal').hidden = true;
+    }
+
     function acceptConsent() {
       localStorage.setItem(CONSENT_KEY, '1');
-      document.getElementById('consentModal').hidden = true;
+      closeConsent();
       doApply();
     }
 
     async function doApply() {
-      setBusy(true);
       const target = applyTarget();
+      if (!target) {
+        toast('Нет доступных узлов для применения', 'warning');
+        return;
+      }
+      setBusy(true, 'apply');
       log('[SYSTEM] Запрос прав администратора для изменения hosts…', 'info');
       if (selectedIp && target === selectedIp) {
         log(`[SYSTEM] Применяется выбранный узел ${selectedIp}.`, 'info');
       }
       try {
-        const r = await send('apply', { ips: target ? [target] : [] });
+        const r = await send('apply', { ips: [target] });
         if (r.success) {
           hostsActive = true;
           warnedDown = false;
-          try { activeBlock = await send('getActiveBlock'); } catch (e) { activeBlock = target ? { ip: target } : null; }
+          try { activeBlock = await send('getActiveBlock'); } catch (e) { activeBlock = { ip: target }; }
           log('[SUCCESS] ' + r.message, 'success');
           toast('Файл hosts успешно обновлён!', 'success');
         } else {
-          log('[ERROR] ' + (r.message || 'fail'), 'error');
-          toast(r.message || 'Ошибка', 'error');
+          log('[ERROR] ' + (r.message || 'ошибка'), 'error');
+          toast(r.message || 'Ошибка применения', 'error');
         }
         renderStatus();
         await refreshInstalledPreview();
       } catch (e) {
         log('[ERROR] ' + e.message, 'error');
-        toast(e.message, 'error');
+        toast(e.message === 'timeout' ? 'Операция заняла слишком много времени' : e.message, 'error');
       } finally {
         setBusy(false);
+        renderStatus();
       }
     }
 
     async function handleRemove() {
-      setBusy(true);
+      if (hostsActive !== true) {
+        toast('Блок hosts уже не активен', 'info');
+        return;
+      }
+      setBusy(true, 'remove');
       log('[SYSTEM] Запрос прав администратора для очистки hosts…', 'info');
       try {
         const r = await send('remove');
@@ -803,19 +845,27 @@
           hostsActive = false;
           activeBlock = null;
           log('[SUCCESS] ' + r.message, 'success');
-          toast('Записи hosts удалены', 'info');
+          toast('Блок hosts удалён', 'info');
         } else {
           log('[ERROR] ' + r.message, 'error');
-          toast(r.message, 'error');
+          toast(r.message || 'Ошибка сброса', 'error');
         }
         renderStatus();
         await refreshInstalledPreview();
       } catch (e) {
-        toast(e.message, 'error');
+        toast(e.message === 'timeout' ? 'Операция заняла слишком много времени' : e.message, 'error');
       } finally {
         setBusy(false);
+        renderStatus();
       }
     }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const m = document.getElementById('consentModal');
+        if (m && !m.hidden) closeConsent();
+      }
+    });
 
     async function toggleAutostart() {
       const sw = document.getElementById('autostart');
