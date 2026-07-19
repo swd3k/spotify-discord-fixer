@@ -16,8 +16,8 @@ env:
   DOTNET_VERSION: "8.0.x"
 
 jobs:
-  # Каждый push/PR: тесты .NET 2.0
-  check:
+  # Windows: полная сборка решения (UI net8.0-windows) + тесты
+  check-windows:
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: windows-latest
     defaults:
@@ -41,7 +41,79 @@ jobs:
       - name: Test
         run: dotnet test SpotifyDiscordFixer.sln -c Release --no-build --nologo
 
-  # Релиз по тегу v*: publish multi-arch + Setup (Inno Setup)
+  # Linux: Core + Infrastructure (кроссплатформенный код, без UI)
+  check-linux:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SpotifyDiscordFixer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore (Core + Infrastructure + tests)
+        run: |
+          dotnet restore src/SpotifyDiscordFixer.Core/SpotifyDiscordFixer.Core.csproj
+          dotnet restore src/SpotifyDiscordFixer.Infrastructure/SpotifyDiscordFixer.Infrastructure.csproj
+          dotnet restore tests/SpotifyDiscordFixer.Core.Tests/SpotifyDiscordFixer.Core.Tests.csproj
+          dotnet restore tests/SpotifyDiscordFixer.Infrastructure.Tests/SpotifyDiscordFixer.Infrastructure.Tests.csproj
+
+      - name: Build
+        run: |
+          dotnet build src/SpotifyDiscordFixer.Core/SpotifyDiscordFixer.Core.csproj -c Release --no-restore
+          dotnet build src/SpotifyDiscordFixer.Infrastructure/SpotifyDiscordFixer.Infrastructure.csproj -c Release --no-restore
+          dotnet build tests/SpotifyDiscordFixer.Core.Tests/SpotifyDiscordFixer.Core.Tests.csproj -c Release --no-restore
+          dotnet build tests/SpotifyDiscordFixer.Infrastructure.Tests/SpotifyDiscordFixer.Infrastructure.Tests.csproj -c Release --no-restore
+
+      - name: Test Core
+        run: dotnet test tests/SpotifyDiscordFixer.Core.Tests/SpotifyDiscordFixer.Core.Tests.csproj -c Release --no-build --nologo
+
+      - name: Test Infrastructure
+        run: dotnet test tests/SpotifyDiscordFixer.Infrastructure.Tests/SpotifyDiscordFixer.Infrastructure.Tests.csproj -c Release --no-build --nologo
+
+  # macOS: Core + Infrastructure (как на Linux)
+  check-macos:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: SpotifyDiscordFixer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore (Core + Infrastructure + tests)
+        run: |
+          dotnet restore src/SpotifyDiscordFixer.Core/SpotifyDiscordFixer.Core.csproj
+          dotnet restore src/SpotifyDiscordFixer.Infrastructure/SpotifyDiscordFixer.Infrastructure.csproj
+          dotnet restore tests/SpotifyDiscordFixer.Core.Tests/SpotifyDiscordFixer.Core.Tests.csproj
+          dotnet restore tests/SpotifyDiscordFixer.Infrastructure.Tests/SpotifyDiscordFixer.Infrastructure.Tests.csproj
+
+      - name: Build
+        run: |
+          dotnet build src/SpotifyDiscordFixer.Core/SpotifyDiscordFixer.Core.csproj -c Release --no-restore
+          dotnet build src/SpotifyDiscordFixer.Infrastructure/SpotifyDiscordFixer.Infrastructure.csproj -c Release --no-restore
+          dotnet build tests/SpotifyDiscordFixer.Core.Tests/SpotifyDiscordFixer.Core.Tests.csproj -c Release --no-restore
+          dotnet build tests/SpotifyDiscordFixer.Infrastructure.Tests/SpotifyDiscordFixer.Infrastructure.Tests.csproj -c Release --no-restore
+
+      - name: Test Core
+        run: dotnet test tests/SpotifyDiscordFixer.Core.Tests/SpotifyDiscordFixer.Core.Tests.csproj -c Release --no-build --nologo
+
+      - name: Test Infrastructure
+        run: dotnet test tests/SpotifyDiscordFixer.Infrastructure.Tests/SpotifyDiscordFixer.Infrastructure.Tests.csproj -c Release --no-build --nologo
+
+  # Релиз по тегу v*: publish multi-arch + Setup (Inno Setup) — только Windows
   release-win:
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     runs-on: windows-latest
@@ -113,7 +185,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
-          body_path: SpotifyDiscordFixer/CHANGELOG.md
+          body_path: CHANGELOG.md
           draft: false
           prerelease: false
           fail_on_unmatched_files: false

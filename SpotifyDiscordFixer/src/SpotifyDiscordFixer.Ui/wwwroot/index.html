@@ -75,13 +75,20 @@
 
           <div class="btn-row">
             <button type="button" class="btn primary" id="btnApply" onclick="handleApply()">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <span class="btn-icon" id="btnApplyIcon" aria-hidden="true">
+                <svg class="ico-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg class="ico-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" hidden>
+                  <path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>
+                </svg>
+              </span>
               <span class="label" id="btnApplyLabel">Обновить и применить</span>
             </button>
             <button type="button" class="btn outline" id="btnRemove" onclick="handleRemove()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-              </svg>
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </span>
               <span class="label">Сбросить hosts</span>
             </button>
           </div>
@@ -112,9 +119,7 @@
 
           <details class="info-block">
             <summary>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
-              </svg>
+              <span class="info-q" aria-hidden="true" title="Справка">?</span>
               <span>Как это работает</span>
               <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"/>
@@ -278,6 +283,7 @@
     let hostsActive = null;
     let activeBlock = null;
     let busy = false;
+    let busyMode = ''; // 'apply' | 'remove' | ''
     let loadingIps = false;
     let previewText = '';
     let updateInfo = null; // { hasUpdate, version, canSilent, releaseUrl, notes? }
@@ -436,41 +442,44 @@
 
     function setBusy(on, mode) {
       busy = !!on;
-      updateActionButtons(mode);
+      if (!on) busyMode = '';
+      else if (mode === 'apply' || mode === 'remove') busyMode = mode;
+      else if (mode === true) busyMode = 'apply';
+      updateActionButtons();
       const ri = document.getElementById('refreshIcon');
       if (ri) ri.style.animation = (busy || loadingIps) ? 'spin 0.9s linear infinite' : '';
     }
 
-    /** Unified disabled/loading state for primary actions (fixes race setBusy vs renderStatus). */
-    function updateActionButtons(mode) {
+    /** Unified disabled/loading state for primary actions. */
+    function updateActionButtons() {
       const upCount = ips.filter(x => x.status === 'Up').length;
       const ba = document.getElementById('btnApply');
       const br = document.getElementById('btnRemove');
       const brf = document.getElementById('btnRefresh');
       const bc = document.getElementById('btnCustom');
       const label = document.getElementById('btnApplyLabel');
+      const isApplyBusy = busy && busyMode === 'apply';
+      const isRemoveBusy = busy && busyMode === 'remove';
 
       if (ba) {
         ba.disabled = busy || upCount === 0;
-        ba.classList.toggle('is-busy', busy && (mode === 'apply' || mode === true));
+        ba.classList.toggle('is-busy', isApplyBusy);
+        const play = ba.querySelector('.ico-play');
+        const spin = ba.querySelector('.ico-spin');
+        if (play) play.hidden = isApplyBusy;
+        if (spin) spin.hidden = !isApplyBusy;
       }
-      if (br) br.disabled = busy || hostsActive !== true;
+      if (br) {
+        br.disabled = busy || hostsActive !== true;
+        br.classList.toggle('is-busy', isRemoveBusy);
+      }
       if (brf) brf.disabled = busy || loadingIps;
       if (bc) bc.disabled = busy;
 
-      if (label && !busy) {
-        const t = applyTarget();
-        if (selectedIp && t === selectedIp) label.textContent = 'Применить ' + t;
-        else label.textContent = t ? 'Обновить и применить · ' + t : 'Обновить и применить';
-      } else if (label && busy && (mode === 'apply' || mode === true)) {
-        label.textContent = 'Применяю…';
-      }
-
-      // Remove button label feedback
+      // Fixed short labels — no IP suffix (avoid truncation like "· 3...")
+      if (label) label.textContent = isApplyBusy ? 'Применяю…' : 'Обновить и применить';
       const brLabel = br && br.querySelector('.label');
-      if (brLabel) {
-        brLabel.textContent = (busy && mode === 'remove') ? 'Сбрасываю…' : 'Сбросить hosts';
-      }
+      if (brLabel) brLabel.textContent = isRemoveBusy ? 'Сбрасываю…' : 'Сбросить hosts';
     }
 
     function validateIp(ip) {
