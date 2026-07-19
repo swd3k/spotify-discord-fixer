@@ -12,12 +12,12 @@
 
 <p align="center">
   <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/swd3k/spotify-discord-fixer?style=flat-square&label=version" /></a>
-  <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square" />
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" />
   <img alt="status" src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" />
   <a href="https://github.com/swd3k"><img alt="author" src="https://img.shields.io/badge/author-swd3k-24292e?style=flat-square&logo=github&logoColor=white" /></a>
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
-  <img alt="Electron" src="https://img.shields.io/badge/Electron-43-47848F?style=flat-square&logo=electron&logoColor=white" />
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white" />
+  <img alt="size" src="https://img.shields.io/badge/Setup-~2.6%20MB-success?style=flat-square" />
 </p>
 
 <p align="center">
@@ -25,13 +25,13 @@
   ·
   <a href="https://github.com/swd3k/spotify-discord-fixer/releases">Releases</a>
   ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="SpotifyDiscordFixer/CHANGELOG.md">Changelog</a>
   ·
   <a href="LICENSE">MIT</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Hosts-Fixer-Setup-1.1.0-win-x64.exe">
+  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe">
     <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
@@ -41,8 +41,9 @@
 </p>
 
 <p align="center">
-  <sub>Direct download: <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Hosts-Fixer-Setup-1.1.0-win-x64.exe"><code>Spotify-Discord-Hosts-Fixer-Setup-1.1.0-win-x64.exe</code></a>
-  · macOS / Linux and portable builds on <a href="https://github.com/swd3k/spotify-discord-fixer/releases">GitHub Releases</a></sub>
+  <sub>Latest: <strong>2.0.0</strong> (Photino, ~2.6 MB Setup) ·
+  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe"><code>Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe</code></a>
+  · portable zips on <a href="https://github.com/swd3k/spotify-discord-fixer/releases">GitHub Releases</a></sub>
 </p>
 
 ---
@@ -51,10 +52,11 @@
 > **Неофициальный** инструмент с открытым исходным кодом. Не связан со Spotify, Discord или GeoHide.  
 > **Используйте на свой страх и риск.** Для изменения `hosts` потребуются права администратора (UAC).
 
-Десктоп-приложение для **Windows / macOS / Linux**, которое помогает вернуть статус
-«🎧 сейчас слушает Spotify» в Discord, когда домены Spotify недоступны или медленные на вашем канале.
-Программа пишет в системный `hosts` блок, перенаправляющий домены Spotify на прокси-узлы GeoHide
-(или на IP, который вы укажете сами).
+**v2.0** — лёгкое Windows-приложение (**~.NET 8 + Photino / WebView2**, Setup ~2–3 MB) вместо Electron (~390 MB).
+Помогает вернуть статус «🎧 сейчас слушает Spotify» в Discord: пишет в системный `hosts` блок
+с перенаправлением доменов Spotify на прокси GeoHide (или ваш IP).
+
+Исходники 2.0: каталог [`SpotifyDiscordFixer/`](SpotifyDiscordFixer/). Legacy Electron 1.x остаётся в корне для истории.
 
 ---
 

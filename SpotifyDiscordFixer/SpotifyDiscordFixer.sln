@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F6F78078-8EFE-47AB-B509-23192BBA0EE9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotifyDiscordFixer.Core", "src\SpotifyDiscordFixer.Core\SpotifyDiscordFixer.Core.csproj", "{ABAEDFD5-7BEF-4C75-98A8-79518F3666B1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotifyDiscordFixer.Infrastructure", "src\SpotifyDiscordFixer.Infrastructure\SpotifyDiscordFixer.Infrastructure.csproj", "{1C9261CD-DFD1-446F-9250-B65179955100}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3C80F05E-8D4C-4748-8D8F-B1B0DA96FB0B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotifyDiscordFixer.Core.Tests", "tests\SpotifyDiscordFixer.Core.Tests\SpotifyDiscordFixer.Core.Tests.csproj", "{2D952712-6AA4-4D9D-A3C4-3E5506A4DA02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotifyDiscordFixer.Ui", "src\SpotifyDiscordFixer.Ui\SpotifyDiscordFixer.Ui.csproj", "{8F4C9279-4B05-4B81-854E-2723EC9A8007}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotifyDiscordFixer.Infrastructure.Tests", "tests\SpotifyDiscordFixer.Infrastructure.Tests\SpotifyDiscordFixer.Infrastructure.Tests.csproj", "{61819CD1-7AF0-48AF-B7C1-D14A8529B13A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ABAEDFD5-7BEF-4C75-98A8-79518F3666B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABAEDFD5-7BEF-4C75-98A8-79518F3666B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABAEDFD5-7BEF-4C75-98A8-79518F3666B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABAEDFD5-7BEF-4C75-98A8-79518F3666B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C9261CD-DFD1-446F-9250-B65179955100}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C9261CD-DFD1-446F-9250-B65179955100}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C9261CD-DFD1-446F-9250-B65179955100}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C9261CD-DFD1-446F-9250-B65179955100}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D952712-6AA4-4D9D-A3C4-3E5506A4DA02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D952712-6AA4-4D9D-A3C4-3E5506A4DA02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D952712-6AA4-4D9D-A3C4-3E5506A4DA02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D952712-6AA4-4D9D-A3C4-3E5506A4DA02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F4C9279-4B05-4B81-854E-2723EC9A8007}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F4C9279-4B05-4B81-854E-2723EC9A8007}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F4C9279-4B05-4B81-854E-2723EC9A8007}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F4C9279-4B05-4B81-854E-2723EC9A8007}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61819CD1-7AF0-48AF-B7C1-D14A8529B13A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61819CD1-7AF0-48AF-B7C1-D14A8529B13A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61819CD1-7AF0-48AF-B7C1-D14A8529B13A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61819CD1-7AF0-48AF-B7C1-D14A8529B13A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{ABAEDFD5-7BEF-4C75-98A8-79518F3666B1} = {F6F78078-8EFE-47AB-B509-23192BBA0EE9}
+		{1C9261CD-DFD1-446F-9250-B65179955100} = {F6F78078-8EFE-47AB-B509-23192BBA0EE9}
+		{2D952712-6AA4-4D9D-A3C4-3E5506A4DA02} = {3C80F05E-8D4C-4748-8D8F-B1B0DA96FB0B}
+		{8F4C9279-4B05-4B81-854E-2723EC9A8007} = {F6F78078-8EFE-47AB-B509-23192BBA0EE9}
+		{61819CD1-7AF0-48AF-B7C1-D14A8529B13A} = {3C80F05E-8D4C-4748-8D8F-B1B0DA96FB0B}
+	EndGlobalSection
+EndGlobal

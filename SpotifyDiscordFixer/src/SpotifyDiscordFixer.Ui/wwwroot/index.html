@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify Discord Fixer</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="card">
+      <!-- Header -->
+      <div class="hdr">
+        <div class="brand">
+          <img src="logo.png" alt="Spotify Discord Fixer" />
+          <div>
+            <h1>Spotify Discord Fixer</h1>
+            <p id="verLine">v2.0.0 · GeoHide Linker</p>
+          </div>
+        </div>
+        <div class="hdr-actions">
+          <button type="button" class="btn-text" id="btnCheckUpdate" title="Проверить обновления" onclick="checkUpdate()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>
+            </svg>
+            Обновления
+          </button>
+          <button type="button" class="icon-btn" title="Открыть страницу проекта на GitHub" onclick="openGithub()" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 .3C5.37.3 0 5.67 0 12.3c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.3C24 5.67 18.63.3 12 .3z"/>
+            </svg>
+          </button>
+          <button type="button" class="icon-btn" title="Переключить тему" id="themeBtn" onclick="toggleTheme()" aria-label="Тема">
+            <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Update banner (hidden until host reports an update) -->
+      <div class="update-banner" id="updateBanner" hidden>
+        <div class="update-banner-text">
+          <span class="update-badge">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+            Обновление
+          </span>
+          <div>
+            <strong id="updateTitle">Доступна новая версия</strong>
+            <span id="updateSub"></span>
+          </div>
+        </div>
+        <div class="update-banner-actions">
+          <button type="button" class="btn sm primary" id="btnInstallUpdate" onclick="startUpdate()">Установить</button>
+          <button type="button" class="btn sm" onclick="dismissUpdateBanner()" title="Скрыть">Позже</button>
+        </div>
+      </div>
+
+      <!-- Two-column body -->
+      <div class="body">
+        <!-- Left: status + controls -->
+        <div class="col">
+          <div class="status-card">
+            <div class="dot" id="statusDot"></div>
+            <div class="status-card-body">
+              <div class="status-card-top">
+                <h2 id="statusTitle">Проверка…</h2>
+                <span class="status-badge" id="statusBadge" hidden>Активно</span>
+              </div>
+              <p id="statusSub">Читаю hosts…</p>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn primary" id="btnApply" onclick="handleApply()">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <span class="label" id="btnApplyLabel">Обновить и применить</span>
+            </button>
+            <button type="button" class="btn outline" id="btnRemove" onclick="handleRemove()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              <span class="label">Сбросить hosts</span>
+            </button>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span>Настройки</span>
+              </h3>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <div>
+                  <p>Запускать вместе с Windows</p>
+                  <small>Программа стартует свёрнутой в трей при входе в систему.</small>
+                </div>
+              </div>
+              <button type="button" class="switch" id="autostart" role="switch" aria-checked="false" title="Переключить автозапуск" onclick="toggleAutostart()"></button>
+            </div>
+          </div>
+
+          <div class="info-block">
+            <div class="info-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+              </svg>
+              Как это работает и что важно понимать
+            </div>
+            <p>
+              Программа добавляет в системный файл hosts строки, которые направляют домены Spotify на прокси-узлы GeoHide (или на свой IP). Изменения вносятся с правами администратора (UAC), исходный hosts сохраняется в резервную копию.
+            </p>
+            <p>
+              Учтите: трафик указанных доменов, включая авторизацию, пойдёт через сторонний сервис. Проект неофициальный и не связан со Spotify, Discord или GeoHide.
+            </p>
+            <button type="button" class="info-link" onclick="openGithub()">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 .3C5.37.3 0 5.67 0 12.3c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.3C24 5.67 18.63.3 12 .3z"/>
+              </svg>
+              Помощь и исходный код на GitHub
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </button>
+            <div class="meta" id="hostsMeta" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- Right: IP list, custom, preview, logs -->
+        <div class="col">
+          <div class="panel" id="ip-list-panel">
+            <div class="panel-head">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/>
+                </svg>
+                <span>Активные прокси-узлы</span>
+              </h3>
+              <button type="button" class="btn sm ghost" id="btnRefresh" onclick="fetchIps()">
+                <svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>
+                </svg>
+                Обновить
+              </button>
+            </div>
+            <div class="ip-list" id="ipList">
+              <div class="ip-loading">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>
+                Загрузка статусов…
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="custom-ip-panel">
+            <div class="panel-head">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+                </svg>
+                <span>Свой IP-адрес</span>
+              </h3>
+            </div>
+            <p class="panel-hint">Укажите IPv4 вручную. Программа проверит доступность по TCP :443 и, если узел в сети, добавит его в список.</p>
+            <div class="custom">
+              <input id="customIp" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="например 37.230.192.51" maxlength="15" onkeydown="if(event.key==='Enter')checkCustom()" oninput="onCustomInput()" />
+              <button type="button" class="btn sm ghost" id="btnCustom" onclick="checkCustom()">Проверить</button>
+            </div>
+            <p class="custom-error" id="customError" hidden>Некорректный формат IPv4</p>
+            <div class="custom-result" id="customResult" hidden></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                </svg>
+                <span>Предпросмотр записей hosts</span>
+              </h3>
+            </div>
+            <p class="panel-hint" id="previewHint">Эти строки будут добавлены в hosts при нажатии «Обновить и применить».</p>
+            <div class="preview-wrap">
+              <button type="button" class="copy-btn" id="copyBtn" title="Скопировать блок" onclick="copyPreview()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+              <pre class="preview" id="preview"># Нет активных IP для предпросмотра.</pre>
+            </div>
+            <div id="installedWrap" hidden style="margin-top:14px">
+              <h3 class="section-title" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border-soft)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>
+                </svg>
+                <span>Сейчас установлено в hosts</span>
+              </h3>
+              <pre class="preview" id="installedPreview"></pre>
+            </div>
+          </div>
+
+          <div class="logs-panel" id="terminal-logs-panel">
+            <div class="logs-head">
+              <h3 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+                <span>Поток отладочных логов</span>
+              </h3>
+              <button type="button" class="logs-clear" onclick="clearLogs()" title="Очистить логи">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+                Очистить
+              </button>
+            </div>
+            <div class="logs" id="logs">
+              <div class="log-line empty">Нет активных логов. Запустите обновление, чтобы увидеть поток.</div>
+            </div>
+            <div class="logs-foot">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span>Изменения затрагивают системные настройки. Всегда проверяйте резервные копии.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ftr">
+        <span>Неофициальный инструмент с открытым кодом</span>
+        <span>Используйте на свой риск</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toasts"></div>
+
+  <div class="modal-bg" id="consentModal" hidden>
+    <div class="modal" role="dialog" aria-labelledby="consentTitle" aria-modal="true">
+      <h2 class="modal-title" id="consentTitle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Что сейчас произойдёт
+      </h2>
+      <div class="modal-body">
+        <p>Программа изменит системный файл hosts: домены Spotify будут направлены на прокси-узлы GeoHide — сторонний сервис, которому вы должны доверять. Потребуются права администратора (запрос UAC).</p>
+        <p>Перед изменением создаётся резервная копия hosts, и всё полностью обратимо кнопкой «Сбросить hosts».</p>
+        <p>Будут перенаправлены в том числе домены авторизации (accounts.spotify.com, login5.spotify.com).</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="document.getElementById('consentModal').hidden=true">Отмена</button>
+        <button type="button" class="btn primary" onclick="acceptConsent()">Понимаю, применить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let seq = 0;
+    const pending = new Map();
+    let ips = [];
+    let selectedIp = null;
+    let hostsActive = null;
+    let activeBlock = null;
+    let busy = false;
+    let loadingIps = false;
+    let previewText = '';
+    let updateInfo = null; // { hasUpdate, version, canSilent, releaseUrl, notes? }
+    const dismissed = new Set();
+    const CONSENT_KEY = 'spf_consent_v1';
+    const RELEASES_URL = 'https://github.com/swd3k/spotify-discord-fixer/releases';
+    const GITHUB_URL = 'https://github.com/swd3k/spotify-discord-fixer';
+    let warnedDown = false;
+    const logLines = [];
+
+    const ICONS = {
+      check: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      x: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warn: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+      zap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      tick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
+      moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+      alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      wifiOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
+    };
+
+    /* —— Host IPC —— */
+    function hostSend(msg) {
+      try {
+        if (window.external && typeof window.external.sendMessage === 'function') {
+          window.external.sendMessage(msg); return true;
+        }
+      } catch (e) {}
+      try {
+        if (window.chrome && window.chrome.webview) {
+          window.chrome.webview.postMessage(msg); return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function send(cmd, data = {}) {
+      return new Promise((resolve, reject) => {
+        const id = 'm' + (++seq);
+        const t = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error('timeout'));
+        }, cmd === 'getIps' ? 60000 : 120000);
+        pending.set(id, { resolve, reject, t });
+        if (!hostSend(JSON.stringify({ id, cmd, ...data }))) {
+          clearTimeout(t); pending.delete(id);
+          resolve({ preview: true });
+        }
+      });
+    }
+
+    function onHostMessage(raw) {
+      try {
+        const env = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (env.payload?.eventName === 'trayMinimized') {
+          if (!localStorage.getItem('spf_tray_hint_seen')) {
+            localStorage.setItem('spf_tray_hint_seen', '1');
+            toast('Программа свёрнута в трей. Чтобы выйти полностью — «Выход» в меню значка.', 'info');
+          }
+          return;
+        }
+        // Push-style update notification from host (Wave 4)
+        if (env.payload?.eventName === 'updateAvailable' || env.payload?.hasUpdate === true) {
+          applyUpdateInfo(env.payload);
+          return;
+        }
+        if (env.id && pending.has(env.id)) {
+          const p = pending.get(env.id);
+          pending.delete(env.id);
+          clearTimeout(p.t);
+          p.resolve(env.payload);
+        }
+      } catch (e) {}
+    }
+    try { window.external = window.external || {}; window.external.receiveMessage = onHostMessage; } catch (e) {}
+    if (window.chrome?.webview)
+      window.chrome.webview.addEventListener('message', e => onHostMessage(e.data));
+
+    /* —— UI helpers —— */
+    function log(msg, level) {
+      const prefix = { info: '💡', success: '✅', warn: '⚠️', error: '❌' }[level || 'info'] || '💡';
+      const line = `${prefix} [${new Date().toLocaleTimeString()}] ${msg}`;
+      logLines.push({ text: line, level: level || 'info' });
+      if (logLines.length > 400) logLines.splice(0, logLines.length - 400);
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const el = document.getElementById('logs');
+      if (!logLines.length) {
+        el.innerHTML = '<div class="log-line empty">Нет активных логов. Запустите обновление, чтобы увидеть поток.</div>';
+        return;
+      }
+      el.innerHTML = logLines.map(l => {
+        let cls = 'log-line';
+        const t = l.text;
+        if (l.level === 'error' || t.includes('[ERROR]') || t.includes('[API ERROR]')) cls += ' error';
+        else if (l.level === 'warn' || t.includes('[WARNING]') || t.includes('[MONITOR]')) cls += ' warn';
+        else if (l.level === 'success' || t.includes('[SUCCESS]')) cls += ' success';
+        else if (t.includes('[SYSTEM]')) cls += ' system';
+        return `<div class="${cls}">${esc(t)}</div>`;
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function clearLogs() {
+      logLines.length = 0;
+      renderLogs();
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function toast(message, type) {
+      const wrap = document.getElementById('toasts');
+      const el = document.createElement('div');
+      const kind = type === 'error' ? 'err' : type === 'success' ? 'ok' : type === 'warning' || type === 'warn' ? 'warn' : 'info';
+      el.className = 'toast ' + kind;
+      const icon = kind === 'ok' ? ICONS.check : kind === 'err' ? ICONS.x : kind === 'warn' ? ICONS.warn : ICONS.info;
+      el.innerHTML = icon + `<span class="toast-msg">${esc(message)}</span><button type="button" class="toast-close" aria-label="Закрыть">✕</button>`;
+      el.querySelector('.toast-close').onclick = () => el.remove();
+      wrap.appendChild(el);
+      while (wrap.children.length > 5) wrap.firstChild.remove();
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    function setBusy(on) {
+      busy = !!on;
+      ['btnApply', 'btnRemove', 'btnRefresh', 'btnCustom'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.disabled = busy || (id === 'btnRefresh' && loadingIps);
+      });
+      const ri = document.getElementById('refreshIcon');
+      if (ri) ri.style.animation = (busy || loadingIps) ? 'spin 0.9s linear infinite' : '';
+    }
+
+    function validateIp(ip) {
+      if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return false;
+      return ip.split('.').every(p => {
+        const n = Number(p);
+        return Number.isInteger(n) && n >= 0 && n <= 255;
+      });
+    }
+
+    function onCustomInput() {
+      const v = (document.getElementById('customIp').value || '').trim();
+      const input = document.getElementById('customIp');
+      const err = document.getElementById('customError');
+      const ok = !v || validateIp(v);
+      input.classList.toggle('invalid', !ok);
+      err.hidden = ok;
+      document.getElementById('customResult').hidden = true;
+    }
+
+    /* —— Status / selection —— */
+    function pickBest(list) {
+      const up = list.filter(r => r.status === 'Up').sort((a, b) => (a.latency ?? 1e9) - (b.latency ?? 1e9));
+      return up[0]?.ip || null;
+    }
+
+    function applyTarget() {
+      if (selectedIp && ips.some(r => r.ip === selectedIp && r.status === 'Up')) return selectedIp;
+      return pickBest(ips);
+    }
+
+    function renderStatus() {
+      const dot = document.getElementById('statusDot');
+      const title = document.getElementById('statusTitle');
+      const sub = document.getElementById('statusSub');
+      const badge = document.getElementById('statusBadge');
+      dot.className = 'dot' + (hostsActive === true ? ' on' : hostsActive === false ? ' off' : '');
+      badge.hidden = hostsActive !== true;
+
+      if (hostsActive === true) {
+        title.textContent = 'Перенаправления активны';
+        if (activeBlock?.ip) {
+          const n = Array.isArray(activeBlock.domains) ? activeBlock.domains.length : null;
+          sub.textContent = n != null
+            ? `Hosts перенаправляет ${n} доменов на узел ${activeBlock.ip}`
+            : `Hosts перенаправляет домены Spotify на узел ${activeBlock.ip}`;
+        } else {
+          sub.textContent = 'Hosts настроен через прокси-узел GeoHide. Discord + Spotify → перезапуск после смены.';
+        }
+      } else if (hostsActive === false) {
+        title.textContent = 'Перенаправления не активны';
+        sub.textContent = 'Запросы к Spotify идут через стандартный DNS. Примените перенаправления, чтобы восстановить синхронизацию презенса в Discord.';
+      } else {
+        title.textContent = 'Статус hosts неизвестен';
+        sub.textContent = 'Не удалось прочитать файл hosts. Проверьте права доступа или повторите попытку.';
+      }
+
+      const t = applyTarget();
+      const label = document.getElementById('btnApplyLabel');
+      if (selectedIp && t === selectedIp) {
+        label.textContent = `Применить ${t}`;
+      } else {
+        label.textContent = t ? `Обновить и применить · ${t}` : 'Обновить и применить';
+      }
+
+      const upCount = ips.filter(x => x.status === 'Up').length;
+      const ba = document.getElementById('btnApply');
+      if (ba && !busy) ba.disabled = upCount === 0;
+      const br = document.getElementById('btnRemove');
+      if (br && !busy) br.disabled = !hostsActive;
+    }
+
+    /* —— IP list (S7 dismiss) —— */
+    function dismissIp(ip) {
+      dismissed.add(ip);
+      ips = ips.filter(r => r.ip !== ip);
+      if (selectedIp === ip) selectedIp = null;
+      log(`[LIST] Узел ${ip} удалён из списка.`, 'info');
+      renderIps();
+      renderStatus();
+      updatePreview();
+    }
+
+    function renderIps() {
+      const box = document.getElementById('ipList');
+      if (loadingIps) {
+        box.innerHTML = `<div class="ip-loading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>Загрузка статусов в реальном времени…</div>`;
+        return;
+      }
+      if (!ips.length) {
+        box.innerHTML = `<div class="ip-empty">${ICONS.alert}<p>Доступных прокси-узлов GeoHide не найдено.</p></div>`;
+        return;
+      }
+
+      const upCount = ips.filter(x => x.status === 'Up').length;
+      const allDown = upCount === 0;
+      let html = '';
+
+      if (allDown) {
+        html += `<div class="ip-alldown">${ICONS.wifiOff}<div><p>Все узлы недоступны</p><small>Проверьте подключение к интернету, введите свой IP ниже или нажмите «Обновить».</small></div></div>`;
+      }
+      if (upCount > 0) {
+        html += `<p class="ip-hint">Нажмите на узел «В сети», чтобы выбрать его для hosts. Без выбора — лучший по задержке. ✕ скрывает узел до перезапуска.</p>`;
+      }
+
+      ips.forEach(r => {
+        const isUp = r.status === 'Up';
+        const isSelected = selectedIp === r.ip;
+        const lat = r.latency != null ? Math.round(r.latency) : null;
+        html += `<div class="ip-row${isSelected ? ' selected' : ''}">`;
+        html += `<button type="button" class="ip-row-main" ${isUp ? '' : 'disabled'} data-ip="${esc(r.ip)}">`;
+        html += `<div class="ip-row-left">`;
+        if (isUp) {
+          html += `<span class="dot on ping" style="width:8px;height:8px;margin:0;box-shadow:0 0 8px var(--spotify)"></span>`;
+        } else {
+          html += `<span class="dot" style="width:8px;height:8px;margin:0;background:var(--red);box-shadow:none"></span>`;
+        }
+        html += `<div style="min-width:0"><div class="ip">${esc(r.ip)}</div><div class="provider">${esc(r.provider || '')}</div></div>`;
+        html += `</div><div class="ip-row-right">`;
+        if (lat != null) {
+          html += `<span class="latency">${ICONS.zap}${lat} мс</span>`;
+        }
+        if (isSelected) {
+          html += `<span class="pill sel">${ICONS.tick} Выбран</span>`;
+        } else {
+          html += `<span class="pill ${isUp ? 'up' : 'down'}">${isUp ? 'В сети' : 'Не в сети'}</span>`;
+        }
+        html += `</div></button>`;
+        html += `<button type="button" class="ip-dismiss" title="Скрыть из списка" data-dismiss="${esc(r.ip)}" aria-label="Скрыть ${esc(r.ip)}">${ICONS.close}</button>`;
+        html += `</div>`;
+      });
+
+      box.innerHTML = html;
+
+      box.querySelectorAll('.ip-row-main:not(:disabled)').forEach(btn => {
+        btn.onclick = () => {
+          selectedIp = btn.getAttribute('data-ip');
+          renderIps();
+          renderStatus();
+          updatePreview();
+        };
+      });
+      box.querySelectorAll('[data-dismiss]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          dismissIp(btn.getAttribute('data-dismiss'));
+        };
+      });
+    }
+
+    /* —— Preview —— */
+    async function updatePreview() {
+      const t = applyTarget();
+      const hint = document.getElementById('previewHint');
+      if (t) {
+        const chosen = selectedIp && selectedIp === t;
+        hint.textContent = `Эти строки будут добавлены в hosts при нажатии «Обновить и применить» (${chosen ? 'выбранный' : 'лучший'} узел ${t}).`;
+      } else {
+        hint.textContent = 'Эти строки будут добавлены в hosts при нажатии «Обновить и применить» (нет доступных узлов).';
+      }
+      try {
+        const r = await send('getBlockText', { ips: t ? [t] : [] });
+        previewText = r.text || '# Нет активных IP для предпросмотра.';
+        document.getElementById('preview').textContent = previewText;
+      } catch (e) {
+        previewText = '# Нет активных IP для предпросмотра.';
+        document.getElementById('preview').textContent = previewText;
+      }
+      await refreshInstalledPreview();
+    }
+
+    async function refreshInstalledPreview() {
+      const wrap = document.getElementById('installedWrap');
+      if (!hostsActive) {
+        wrap.hidden = true;
+        return;
+      }
+      try {
+        const b = await send('getActiveBlock');
+        if (b && b.text) {
+          document.getElementById('installedPreview').textContent = b.text;
+          wrap.hidden = false;
+        } else if (b && b.ip) {
+          // host may return structured block without full text
+          document.getElementById('installedPreview').textContent = `# active → ${b.ip}`;
+          wrap.hidden = false;
+        } else {
+          wrap.hidden = true;
+        }
+      } catch (e) {
+        wrap.hidden = true;
+      }
+    }
+
+    async function copyPreview() {
+      try {
+        await navigator.clipboard.writeText(previewText || '');
+        const btn = document.getElementById('copyBtn');
+        btn.classList.add('copied');
+        btn.innerHTML = ICONS.tick;
+        toast('Блок hosts скопирован в буфер обмена!', 'success');
+        log('[UTILITY] Скопирован предпросмотр блока hosts.', 'info');
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+        }, 2000);
+      } catch (e) {
+        toast('Не удалось скопировать', 'error');
+      }
+    }
+
+    /* —— Data actions —— */
+    async function refreshStatus() {
+      try {
+        const r = await send('getStatus');
+        hostsActive = r.status;
+        if (hostsActive) {
+          const b = await send('getActiveBlock');
+          activeBlock = b || null;
+          if (b && b.ip) log(`[SYSTEM] Активный узел ${b.ip}`, 'success');
+        } else {
+          activeBlock = null;
+        }
+        renderStatus();
+        await refreshInstalledPreview();
+      } catch (e) {
+        hostsActive = null;
+        activeBlock = null;
+        renderStatus();
+      }
+    }
+
+    async function fetchIps() {
+      setBusy(true);
+      loadingIps = true;
+      renderIps();
+      log('[API] Резолвлю geohide.ru и проверяю доступность узлов…', 'info');
+      try {
+        const r = await send('getIps');
+        const list = (r.ips || []).filter(x => !dismissed.has(x.ip));
+        const custom = ips.filter(x => x.provider === 'Свой IP' && !list.some(g => g.ip === x.ip) && !dismissed.has(x.ip));
+        ips = [...list, ...custom].sort((a, b) => {
+          if (a.status !== b.status) return a.status === 'Up' ? -1 : 1;
+          return (a.latency ?? 1e9) - (b.latency ?? 1e9);
+        });
+        if (selectedIp && !ips.some(r => r.ip === selectedIp && r.status === 'Up')) selectedIp = null;
+        const up = ips.filter(x => x.status === 'Up').length;
+        log(`[API] IP: всего ${ips.length}, в сети ${up}.`, 'success');
+        toast(`Список обновлён: ${up} активных IP`, 'success');
+        renderIps();
+        renderStatus();
+        await updatePreview();
+      } catch (e) {
+        log('[API ERROR] ' + (e.message || e), 'error');
+        toast('Не удалось получить список IP', 'error');
+        renderIps();
+      } finally {
+        loadingIps = false;
+        setBusy(false);
+        renderIps();
+      }
+    }
+
+    async function checkCustom() {
+      const ip = (document.getElementById('customIp').value || '').trim();
+      if (!ip) return;
+      if (!validateIp(ip)) {
+        toast('Введите корректный IPv4-адрес (например 1.2.3.4).', 'error');
+        return;
+      }
+      setBusy(true);
+      log(`[CUSTOM] Проверяю доступность ${ip} (TCP :443)…`, 'info');
+      try {
+        const r = await send('pingIp', { ip });
+        const latency = r.latency;
+        const rec = {
+          ip,
+          status: latency != null ? 'Up' : 'Down',
+          provider: 'Свой IP',
+          latency: latency != null ? Math.round(latency) : null,
+        };
+        dismissed.delete(ip);
+        ips = [rec, ...ips.filter(x => x.ip !== ip)].sort((a, b) => {
+          if (a.status !== b.status) return a.status === 'Up' ? -1 : 1;
+          return (a.latency ?? 1e9) - (b.latency ?? 1e9);
+        });
+        const result = document.getElementById('customResult');
+        result.hidden = false;
+        if (rec.status === 'Up') {
+          selectedIp = ip;
+          result.className = 'custom-result ok';
+          result.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span class="dot on" style="width:8px;height:8px;margin:0"></span><div><div class="ip" style="font-family:var(--mono);font-weight:600">${esc(ip)}</div><div style="font-size:10px;color:var(--muted)">В сети · ${rec.latency} мс</div></div></div><span class="pill up">В списке</span>`;
+          log(`[CUSTOM] ${ip} в сети, задержка ${rec.latency} мс.`, 'success');
+          toast(`${ip} доступен (${rec.latency} мс)`, 'success');
+          log(`[CUSTOM] Узел ${ip} выбран для записи в hosts.`, 'info');
+        } else {
+          result.className = 'custom-result bad';
+          result.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span class="dot" style="width:8px;height:8px;margin:0;background:var(--red);box-shadow:none"></span><div><div class="ip" style="font-family:var(--mono);font-weight:600">${esc(ip)}</div><div style="font-size:10px;color:var(--muted)">Не отвечает на :443</div></div></div>`;
+          log(`[CUSTOM] ${ip} не отвечает на TCP :443.`, 'warn');
+          toast(`${ip} недоступен`, 'warning');
+        }
+        renderIps();
+        renderStatus();
+        await updatePreview();
+      } catch (e) {
+        toast(e.message || String(e), 'error');
+        log('[CUSTOM ERROR] ' + (e.message || e), 'error');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function handleApply() {
+      if (!localStorage.getItem(CONSENT_KEY)) {
+        document.getElementById('consentModal').hidden = false;
+        return;
+      }
+      doApply();
+    }
+
+    function acceptConsent() {
+      localStorage.setItem(CONSENT_KEY, '1');
+      document.getElementById('consentModal').hidden = true;
+      doApply();
+    }
+
+    async function doApply() {
+      setBusy(true);
+      const target = applyTarget();
+      log('[SYSTEM] Запрос прав администратора для изменения hosts…', 'info');
+      if (selectedIp && target === selectedIp) {
+        log(`[SYSTEM] Применяется выбранный узел ${selectedIp}.`, 'info');
+      }
+      try {
+        const r = await send('apply', { ips: target ? [target] : [] });
+        if (r.success) {
+          hostsActive = true;
+          warnedDown = false;
+          try { activeBlock = await send('getActiveBlock'); } catch (e) { activeBlock = target ? { ip: target } : null; }
+          log('[SUCCESS] ' + r.message, 'success');
+          toast('Файл hosts успешно обновлён!', 'success');
+        } else {
+          log('[ERROR] ' + (r.message || 'fail'), 'error');
+          toast(r.message || 'Ошибка', 'error');
+        }
+        renderStatus();
+        await refreshInstalledPreview();
+      } catch (e) {
+        log('[ERROR] ' + e.message, 'error');
+        toast(e.message, 'error');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function handleRemove() {
+      setBusy(true);
+      log('[SYSTEM] Запрос прав администратора для очистки hosts…', 'info');
+      try {
+        const r = await send('remove');
+        if (r.success) {
+          hostsActive = false;
+          activeBlock = null;
+          log('[SUCCESS] ' + r.message, 'success');
+          toast('Записи hosts удалены', 'info');
+        } else {
+          log('[ERROR] ' + r.message, 'error');
+          toast(r.message, 'error');
+        }
+        renderStatus();
+        await refreshInstalledPreview();
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function toggleAutostart() {
+      const sw = document.getElementById('autostart');
+      const next = !sw.classList.contains('on');
+      try {
+        const r = await send('setAutostart', { enabled: next });
+        const on = !!r.enabled;
+        sw.classList.toggle('on', on);
+        sw.setAttribute('aria-checked', on ? 'true' : 'false');
+        log(`[SYSTEM] Автозапуск ${on ? 'включён (свёрнуто в трей)' : 'выключен'}.`, 'info');
+      } catch (e) {
+        toast('Не удалось изменить автозапуск', 'error');
+      }
+    }
+
+    function setAutostartUi(on) {
+      const sw = document.getElementById('autostart');
+      sw.classList.toggle('on', !!on);
+      sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('spf_theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('themeIcon');
+      if (!icon) return;
+      icon.setAttribute('fill', 'none');
+      icon.setAttribute('stroke', 'currentColor');
+      icon.setAttribute('stroke-width', '2');
+      icon.innerHTML = theme === 'light' ? ICONS.moon : ICONS.sun;
+    }
+
+    function openGithub() {
+      send('openUrl', { url: GITHUB_URL }).catch(() => {});
+    }
+
+    /* —— Update banner (Wave 4 host wiring) —— */
+    function applyUpdateInfo(info) {
+      if (!info || !info.hasUpdate) {
+        updateInfo = null;
+        document.getElementById('updateBanner').hidden = true;
+        return;
+      }
+      updateInfo = {
+        hasUpdate: true,
+        version: info.version || info.latestVersion || '',
+        canSilent: !!info.canSilent,
+        releaseUrl: info.releaseUrl || info.url || RELEASES_URL,
+        notes: info.notes || '',
+      };
+      const title = document.getElementById('updateTitle');
+      const sub = document.getElementById('updateSub');
+      title.textContent = updateInfo.version
+        ? `Доступна версия ${updateInfo.version}`
+        : 'Доступна новая версия';
+      sub.textContent = updateInfo.notes ? ' · ' + updateInfo.notes : '';
+      document.getElementById('updateBanner').hidden = false;
+    }
+
+    function dismissUpdateBanner() {
+      document.getElementById('updateBanner').hidden = true;
+    }
+
+    async function checkUpdate() {
+      log('[SYSTEM] Проверка обновлений…', 'info');
+      try {
+        const r = await send('checkUpdate');
+        if (r && r.preview) {
+          toast('Проверка обновлений недоступна в превью', 'info');
+          return;
+        }
+        if (r && (r.hasUpdate || r.update?.hasUpdate)) {
+          const info = r.hasUpdate ? r : r.update;
+          applyUpdateInfo({ ...info, hasUpdate: true });
+          toast(info.version ? `Доступна версия ${info.version}` : 'Доступно обновление', 'success');
+        } else if (r && r.update) {
+          applyUpdateInfo(r.update);
+          if (!r.update.hasUpdate) toast('У вас актуальная версия', 'info');
+        } else {
+          applyUpdateInfo(null);
+          toast('У вас актуальная версия', 'info');
+          log('[SYSTEM] Обновлений нет.', 'success');
+        }
+      } catch (e) {
+        // Host may not implement yet (Wave 4) — keep quiet-ish
+        if (e.message === 'timeout') {
+          toast('Хост не ответил на checkUpdate (Wave 4)', 'warning');
+        } else {
+          toast('Не удалось проверить обновления', 'error');
+        }
+        log('[SYSTEM] checkUpdate: ' + (e.message || e), 'warn');
+      }
+    }
+
+    async function startUpdate() {
+      if (!updateInfo?.hasUpdate) return;
+      if (updateInfo.canSilent) {
+        log('[SYSTEM] Запуск установки обновления…', 'info');
+        try {
+          await send('startUpdate');
+          toast('Установка обновления запущена', 'info');
+        } catch (e) {
+          toast('Не удалось запустить обновление', 'error');
+          log('[SYSTEM] startUpdate: ' + (e.message || e), 'error');
+        }
+      } else {
+        const url = updateInfo.releaseUrl || RELEASES_URL;
+        log('[SYSTEM] Открываю страницу релизов…', 'info');
+        send('openUrl', { url }).catch(() => {});
+      }
+    }
+
+    // Monitor active node every 90s
+    setInterval(async () => {
+      if (hostsActive !== true || busy) return;
+      try {
+        const b = await send('getActiveBlock');
+        if (!b?.ip) return;
+        activeBlock = b;
+        const p = await send('pingIp', { ip: b.ip });
+        if (p.latency == null) {
+          if (!warnedDown) {
+            warnedDown = true;
+            log(`[MONITOR] Активный узел ${b.ip} перестал отвечать. Обновите список и примените заново.`, 'warn');
+            toast(`Узел ${b.ip} не отвечает — выберите другой`, 'warning');
+          }
+        } else {
+          if (warnedDown) {
+            log(`[MONITOR] Узел ${b.ip} снова в сети (${Math.round(p.latency)} мс).`, 'success');
+          }
+          warnedDown = false;
+        }
+      } catch (e) {}
+    }, 90000);
+
+    (async () => {
+      const th = localStorage.getItem('spf_theme');
+      if (th === 'light' || th === 'dark') {
+        document.documentElement.setAttribute('data-theme', th);
+        updateThemeIcon(th);
+      } else {
+        updateThemeIcon('dark');
+      }
+      log('[SYSTEM] Spotify Discord Fixer запущен.', 'info');
+      try { await send('uiReady'); } catch (e) {}
+      try {
+        const s = await send('getState');
+        if (s.version) document.getElementById('verLine').textContent = 'v' + s.version + ' · GeoHide Linker';
+        hostsActive = s.status;
+        if (s.hostsPath) {
+          document.getElementById('hostsMeta').textContent =
+            'hosts: ' + s.hostsPath + (s.elevated ? ' (запись OK)' : ' (может понадобиться UAC)') +
+            (s.backupDir ? ' · бэкапы: ' + s.backupDir : '');
+        }
+        setAutostartUi(!!s.autostart);
+        // Wave 4: host may embed update state in getState
+        if (s.update) applyUpdateInfo(s.update);
+        renderStatus();
+      } catch (e) {}
+      await refreshStatus();
+      await fetchIps();
+    })();
+  </script>
+</body>
+</html>

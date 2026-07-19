@@ -1,0 +1,824 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using SpotifyDiscordFixer.Core.Models;
+using SpotifyDiscordFixer.Infrastructure.Storage;
+
+namespace SpotifyDiscordFixer.Infrastructure.Services;
+
+/// <summary>
+/// GitHub Releases updater: check latest SemVer, download Setup, silent Inno install.
+/// Prefers github.com (Atom / latest redirect) because many networks poison or block api.github.com.
+/// </summary>
+public sealed class UpdateService
+{
+    public const string Owner = "swd3k";
+    public const string Repo = "spotify-discord-fixer";
+    public const string ReleasesApi = "https://api.github.com/repos/swd3k/spotify-discord-fixer/releases/latest";
+    public const string ReleasesPage = "https://github.com/swd3k/spotify-discord-fixer/releases";
+    public const string ReleasesAtom = "https://github.com/swd3k/spotify-discord-fixer/releases.atom";
+    public const string ReleasesLatestRedirect = "https://github.com/swd3k/spotify-discord-fixer/releases/latest";
+
+    public const string UserAgent = "SpotifyDiscordFixer-Updater/2.0.0";
+
+    /// <summary>Stable error codes for UI i18n (never OS-locale exception text).</summary>
+    public static class ErrorCodes
+    {
+        public const string Network = "network";
+        public const string Timeout = "timeout";
+        public const string Http = "http";
+        public const string Parse = "parse";
+        public const string Unknown = "unknown";
+    }
+
+    /// <summary>Hard cap for Setup download (disk / DoS protection).</summary>
+    public const long MaxSetupBytes = 120L * 1024 * 1024;
+
+    private static readonly SocketsHttpHandler SharedHandler = CreateHandler(allowAutoRedirect: true);
+    private static readonly HttpClient Http = CreateClient(SharedHandler);
+
+    private static readonly IPAddress[] ApiGithubFallbackIps =
+    {
+        IPAddress.Parse("140.82.121.6"),
+        IPAddress.Parse("140.82.121.5"),
+        IPAddress.Parse("140.82.112.6"),
+        IPAddress.Parse("140.82.113.6"),
+    };
+
+    private static readonly Regex TagInUrl = new(
+        @"/releases/(?:tag|download)/(v?\d+\.\d+\.\d+(?:[.-][A-Za-z0-9.]+)?)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex TagInAtomId = new(
+        @"/v?\d+\.\d+\.\d+(?:[.-][A-Za-z0-9.]+)?$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    public string LocalVersion { get; } = ReadLocalVersion();
+
+    public async Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
+    {
+        string local = LocalVersion;
+        var failures = new List<string>(3);
+        Exception? lastFail = null;
+
+        // 1) Atom on github.com FIRST — works when api.github.com DNS/IP is poisoned
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(12));
+            var atom = await TryCheckViaAtomAsync(local, cts.Token).ConfigureAwait(false);
+            if (atom is not null)
+                return atom;
+            failures.Add("atom:empty");
+        }
+        catch (Exception ex) when (!IsCallerCancel(ex, cancellationToken))
+        {
+            lastFail = ex;
+            failures.Add("atom:" + ex.GetType().Name);
+        }
+
+        // 2) /releases/latest redirect → tag
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(12));
+            var redir = await TryCheckViaLatestRedirectAsync(local, cts.Token).ConfigureAwait(false);
+            if (redir is not null)
+                return redir;
+            failures.Add("redirect:empty");
+        }
+        catch (Exception ex) when (!IsCallerCancel(ex, cancellationToken))
+        {
+            lastFail = ex;
+            failures.Add("redirect:" + ex.GetType().Name);
+        }
+
+        // 3) REST API (optional enrichment) — short budget + DNS fallback IPs
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+            var api = await TryCheckViaApiAsync(local, cts.Token).ConfigureAwait(false);
+            if (api is not null)
+                return api;
+            failures.Add("api:empty");
+        }
+        catch (Exception ex) when (!IsCallerCancel(ex, cancellationToken))
+        {
+            lastFail = ex;
+            failures.Add("api:" + ex.GetType().Name);
+        }
+
+        var (code, msg) = ClassifyError(lastFail);
+        return new UpdateCheckResult
+        {
+            LocalVersion = local,
+            Error = msg,
+            ErrorCode = code,
+            ReleaseUrl = ReleasesPage,
+            IsPortable = IsPortableInstall(),
+            ReleaseNotes = failures.Count > 0 ? string.Join(",", failures) : null
+        };
+    }
+
+    public async Task<OperationResult> DownloadAndInstallAsync(
+        UpdateCheckResult check,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (check is null || !check.HasUpdate)
+            return OperationResult.Ok("Already up to date.");
+
+        if (string.IsNullOrWhiteSpace(check.DownloadUrl))
+            return OperationResult.Fail(
+                "No Setup asset for this architecture.",
+                detail: check.ReleaseUrl);
+
+        if (check.IsPortable || !check.CanSilentInstall)
+            return OperationResult.Fail(
+                "Silent update requires Program Files install. Open Releases to download Setup.",
+                detail: check.ReleaseUrl);
+
+        // Always download from the canonical Setup URL for this version+RID.
+        // Never trust browser_download_url / asset name from a remote JSON payload.
+        string rid = GetCurrentRid();
+        string version = check.LatestVersion ?? "";
+        if (!SemVer.TryParse(version, out _))
+            return OperationResult.Fail("Invalid update version.");
+
+        string downloadUrl = BuildSetupDownloadUrl(version, rid);
+        string fileName = BuildSetupAssetName(version, rid);
+
+        if (!IsAllowedDownloadUrl(downloadUrl))
+            return OperationResult.Fail("Download URL rejected (not official repo).");
+
+        try
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "SpotifyDiscordFixer-update");
+            Directory.CreateDirectory(dir);
+            string dest = Path.Combine(dir, fileName);
+
+            using var resp = await Http.GetAsync(
+                    downloadUrl,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+
+            // Final URL after redirects must still be allowlisted (open redirect defense).
+            string? finalUrl = resp.RequestMessage?.RequestUri?.ToString();
+            if (!string.IsNullOrEmpty(finalUrl) && !IsAllowedDownloadUrl(finalUrl))
+                return OperationResult.Fail("Download redirect rejected (not official CDN).");
+
+            long? total = resp.Content.Headers.ContentLength;
+            if (total is > MaxSetupBytes)
+                return OperationResult.Fail("Setup package too large.");
+
+            long readTotal = 0;
+            bool sizeExceeded = false;
+            try
+            {
+                await using var input = await resp.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                await using var output = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+                var buffer = new byte[81920];
+                int read;
+                while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)
+                           .ConfigureAwait(false)) > 0)
+                {
+                    readTotal += read;
+                    if (readTotal > MaxSetupBytes)
+                    {
+                        sizeExceeded = true;
+                        break;
+                    }
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    if (total is > 0)
+                        progress?.Report(Math.Clamp(readTotal / (double)total.Value, 0, 1));
+                }
+            }
+            catch
+            {
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { /* ignore */ }
+                throw;
+            }
+
+            if (sizeExceeded || readTotal > MaxSetupBytes || readTotal < 64)
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail(readTotal < 64 && !sizeExceeded
+                    ? "Downloaded file is too small to be a Setup."
+                    : "Setup package exceeded size limit.");
+            }
+
+            progress?.Report(1);
+
+            // Sanity: must look like a Windows PE (Inno Setup is an .exe).
+            if (!LooksLikePeExecutable(dest))
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail("Downloaded file is not a valid Windows executable.");
+            }
+
+            string args =
+                "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS";
+            var psi = new ProcessStartInfo
+            {
+                FileName = dest,
+                Arguments = args,
+                UseShellExecute = true,
+            };
+            Process.Start(psi);
+
+            await Task.Delay(800, cancellationToken).ConfigureAwait(false);
+            return OperationResult.Ok("Updater started; application will exit.");
+        }
+        catch (Exception ex)
+        {
+            var (code, msg) = ClassifyError(ex);
+            return OperationResult.Fail(msg, detail: code + ": " + ex.GetType().Name);
+        }
+    }
+
+    public static string GetCurrentRid()
+    {
+        if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+            return "win-arm64";
+        if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
+            return "win-x86";
+        return "win-x64";
+    }
+
+    public static bool IsPortableInstall()
+    {
+        try
+        {
+            if (File.Exists(Path.Combine(AppContext.BaseDirectory, AppPaths.PortableMarker)))
+                return true;
+
+            string baseDir = AppContext.BaseDirectory.TrimEnd(
+                Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            if (!string.IsNullOrEmpty(pf)
+                && baseDir.StartsWith(pf, StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (!string.IsNullOrEmpty(pf86)
+                && baseDir.StartsWith(pf86, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // Also treat path containing "Program Files" as installed (e.g. localized variants)
+            if (baseDir.Contains("Program Files", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (HasUninstallEntry())
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Canonical Setup URL — never trust remote asset names from JSON.
+    /// Format: Spotify-Discord-Fixer-Setup-{version}-{rid}.exe (rid = win-x64 | win-x86 | win-arm64)
+    /// </summary>
+    public static string BuildSetupDownloadUrl(string version, string rid)
+    {
+        string ver = version.Trim().TrimStart('v', 'V');
+        return $"https://github.com/{Owner}/{Repo}/releases/download/v{ver}/Spotify-Discord-Fixer-Setup-{ver}-{rid}.exe";
+    }
+
+    public static string BuildSetupAssetName(string version, string rid)
+    {
+        string ver = version.Trim().TrimStart('v', 'V');
+        return $"Spotify-Discord-Fixer-Setup-{ver}-{rid}.exe";
+    }
+
+    public static bool TryParseLatestTagFromAtom(string atomXml, out string tag)
+    {
+        tag = "";
+        if (string.IsNullOrWhiteSpace(atomXml)) return false;
+
+        int entryStart = atomXml.IndexOf("<entry", StringComparison.OrdinalIgnoreCase);
+        string slice = entryStart >= 0 ? atomXml[entryStart..] : atomXml;
+
+        var linkMatch = Regex.Match(
+            slice,
+            @"href\s*=\s*""([^""]*/releases/tag/[^""]+)""",
+            RegexOptions.IgnoreCase);
+        if (linkMatch.Success && TryExtractTag(linkMatch.Groups[1].Value, out tag))
+            return true;
+
+        var idMatch = Regex.Match(
+            slice,
+            @"<id>\s*([^<]+)\s*</id>",
+            RegexOptions.IgnoreCase);
+        if (idMatch.Success && TryExtractTag(idMatch.Groups[1].Value.Trim(), out tag))
+            return true;
+
+        var titleMatch = Regex.Match(
+            slice,
+            @"<title>\s*([^<]*v?\d+\.\d+\.\d+[^<]*)\s*</title>",
+            RegexOptions.IgnoreCase);
+        if (titleMatch.Success)
+        {
+            var verInTitle = Regex.Match(titleMatch.Groups[1].Value, @"v?\d+\.\d+\.\d+");
+            if (verInTitle.Success)
+            {
+                tag = verInTitle.Value;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool TryExtractTag(string? text, out string tag)
+    {
+        tag = "";
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var m = TagInUrl.Match(text);
+        if (m.Success)
+        {
+            tag = m.Groups[1].Value;
+            return true;
+        }
+
+        m = TagInAtomId.Match(text.Trim());
+        if (m.Success)
+        {
+            tag = m.Value.TrimStart('/');
+            return true;
+        }
+
+        if (SemVer.TryParse(text, out _))
+        {
+            tag = text.Trim();
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Map exceptions to stable English messages + codes (never OS-locale Win32 text).
+    /// </summary>
+    public static (string Code, string Message) ClassifyError(Exception? ex)
+    {
+        if (ex is null)
+            return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+
+        Exception root = ex;
+        while (root.InnerException is not null
+               && (root is HttpRequestException or TaskCanceledException or AggregateException
+                   or IOException))
+            root = root.InnerException;
+
+        if (ex is TaskCanceledException or OperationCanceledException or TimeoutException
+            || root is TimeoutException or TaskCanceledException or OperationCanceledException)
+            return (ErrorCodes.Timeout, "Update check timed out. Try again or open Releases.");
+
+        if (root is SocketException
+            || root is IOException
+            || ex is HttpRequestException
+            || root is HttpRequestException
+            || root.GetType().Name.Contains("Authentication", StringComparison.Ordinal)
+            || root.GetType().Name.Contains("Security", StringComparison.Ordinal))
+            return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+
+        return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+    }
+
+    private static bool IsCallerCancel(Exception ex, CancellationToken caller)
+    {
+        if (caller.IsCancellationRequested
+            && ex is OperationCanceledException)
+            return true;
+        return false;
+    }
+
+    private async Task<UpdateCheckResult?> TryCheckViaApiAsync(string local, CancellationToken ct)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, ReleasesApi);
+            req.Headers.Accept.ParseAdd("application/vnd.github+json");
+            using var resp = await Http.SendAsync(req, ct).ConfigureAwait(false);
+            if (resp.IsSuccessStatusCode)
+                return await ParseApiResponseAsync(local, resp, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested)
+        {
+            if (ct.IsCancellationRequested) throw;
+        }
+
+        return await TryCheckViaApiWithFallbackIpsAsync(local, ct).ConfigureAwait(false);
+    }
+
+    private static async Task<UpdateCheckResult?> TryCheckViaApiWithFallbackIpsAsync(
+        string local, CancellationToken ct)
+    {
+        foreach (var ip in ApiGithubFallbackIps)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                using var handler = new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = true,
+                    AutomaticDecompression = DecompressionMethods.All,
+                    ConnectTimeout = TimeSpan.FromSeconds(5),
+                    ConnectCallback = async (ctx, token) =>
+                    {
+                        var socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                        {
+                            NoDelay = true
+                        };
+                        try
+                        {
+                            using var reg = token.Register(() =>
+                            {
+                                try { socket.Dispose(); } catch { /* ignore */ }
+                            });
+                            await socket.ConnectAsync(new IPEndPoint(ip, 443), token)
+                                .ConfigureAwait(false);
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch
+                        {
+                            try { socket.Dispose(); } catch { /* ignore */ }
+                            throw;
+                        }
+                    }
+                };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+                client.DefaultRequestHeaders.Host = "api.github.com";
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+                using var resp = await client.GetAsync(ReleasesApi, ct).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                    continue;
+                return await ParseApiResponseAsync(local, resp, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested)
+            {
+                if (ct.IsCancellationRequested) throw;
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<UpdateCheckResult?> ParseApiResponseAsync(
+        string local, HttpResponseMessage resp, CancellationToken ct)
+    {
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+        var root = doc.RootElement;
+
+        if (root.TryGetProperty("draft", out var draft) && draft.ValueKind == JsonValueKind.True)
+            return UpToDate(local, ReleasesPage);
+
+        if (root.TryGetProperty("prerelease", out var pre) && pre.ValueKind == JsonValueKind.True)
+            return UpToDate(local, ReleasesPage);
+
+        string? tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() : null;
+        string? htmlUrlRaw = root.TryGetProperty("html_url", out var h) ? h.GetString() : null;
+        string? body = root.TryGetProperty("body", out var b) ? b.GetString() : null;
+        string htmlUrl = IsAllowedReleasePageUrl(htmlUrlRaw ?? "")
+            ? htmlUrlRaw!
+            : ReleasesPage;
+
+        if (!SemVer.TryParse(tag, out var latest) || !SemVer.TryParse(local, out var localSem))
+        {
+            return new UpdateCheckResult
+            {
+                LocalVersion = local,
+                LatestVersion = tag?.TrimStart('v', 'V'),
+                Error = "Could not parse version",
+                ErrorCode = ErrorCodes.Parse,
+                ReleaseUrl = htmlUrl,
+                IsPortable = IsPortableInstall()
+            };
+        }
+
+        bool hasUpdate = latest > localSem;
+        string rid = GetCurrentRid();
+        string? downloadUrl = hasUpdate ? BuildSetupDownloadUrl(latest.ToString(), rid) : null;
+        string? assetName = hasUpdate ? BuildSetupAssetName(latest.ToString(), rid) : null;
+
+        bool portable = IsPortableInstall();
+        return new UpdateCheckResult
+        {
+            LocalVersion = localSem.ToString(),
+            LatestVersion = latest.ToString(),
+            HasUpdate = hasUpdate,
+            DownloadUrl = downloadUrl,
+            AssetName = assetName,
+            ReleaseUrl = htmlUrl,
+            ReleaseNotes = body is { Length: > 2000 } ? body[..2000] + "…" : body,
+            CanSilentInstall = hasUpdate && downloadUrl is not null && !portable,
+            IsPortable = portable
+        };
+    }
+
+    private async Task<UpdateCheckResult?> TryCheckViaAtomAsync(string local, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, ReleasesAtom);
+        req.Headers.Accept.ParseAdd("application/atom+xml");
+        req.Headers.Accept.ParseAdd("application/xml");
+        req.Headers.Accept.ParseAdd("text/xml");
+        req.Headers.Accept.ParseAdd("*/*");
+        using var resp = await Http.SendAsync(req, ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            return null;
+
+        string xml = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(xml))
+            return null;
+
+        if (xml.Contains("<html", StringComparison.OrdinalIgnoreCase)
+            && !xml.Contains("<feed", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        if (!TryParseLatestTagFromAtom(xml, out string tag))
+            return null;
+
+        string tagNorm = tag.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? tag : "v" + tag;
+        return BuildFromTag(local, tag, $"https://github.com/{Owner}/{Repo}/releases/tag/{tagNorm}");
+    }
+
+    private async Task<UpdateCheckResult?> TryCheckViaLatestRedirectAsync(string local, CancellationToken ct)
+    {
+        using var handler = CreateHandler(allowAutoRedirect: false);
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
+        client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
+
+        string? location = null;
+
+        using (var getReq = new HttpRequestMessage(HttpMethod.Get, ReleasesLatestRedirect))
+        using (var getResp = await client.SendAsync(
+                   getReq, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
+        {
+            location = getResp.Headers.Location?.ToString();
+            if (string.IsNullOrEmpty(location)
+                && getResp.Headers.TryGetValues("Location", out var vals))
+                location = vals.FirstOrDefault();
+
+            if (string.IsNullOrEmpty(location) && getResp.RequestMessage?.RequestUri is { } gu
+                && gu.AbsoluteUri.Contains("/releases/tag/", StringComparison.OrdinalIgnoreCase))
+                location = gu.AbsoluteUri;
+
+            if (string.IsNullOrEmpty(location) && getResp.IsSuccessStatusCode)
+            {
+                string html = await getResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                var m = Regex.Match(html, @"/releases/tag/(v?\d+\.\d+\.\d+)", RegexOptions.IgnoreCase);
+                if (m.Success)
+                    location = $"https://github.com/{Owner}/{Repo}/releases/tag/{m.Groups[1].Value}";
+            }
+        }
+
+        if (string.IsNullOrEmpty(location) || !TryExtractTag(location, out string tag))
+            return null;
+
+        string tagUrl = location.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? location
+            : $"https://github.com/{Owner}/{Repo}/releases/tag/{(tag.StartsWith('v') ? tag : "v" + tag)}";
+        return BuildFromTag(local, tag, tagUrl);
+    }
+
+    private static UpdateCheckResult BuildFromTag(string local, string tag, string releaseUrl)
+    {
+        if (!SemVer.TryParse(tag, out var latest) || !SemVer.TryParse(local, out var localSem))
+        {
+            return new UpdateCheckResult
+            {
+                LocalVersion = local,
+                LatestVersion = tag.TrimStart('v', 'V'),
+                Error = "Could not parse version",
+                ErrorCode = ErrorCodes.Parse,
+                ReleaseUrl = releaseUrl,
+                IsPortable = IsPortableInstall()
+            };
+        }
+
+        bool hasUpdate = latest > localSem;
+        string rid = GetCurrentRid();
+        string? downloadUrl = hasUpdate ? BuildSetupDownloadUrl(latest.ToString(), rid) : null;
+        string? assetName = hasUpdate ? BuildSetupAssetName(latest.ToString(), rid) : null;
+        bool portable = IsPortableInstall();
+
+        string html = IsAllowedReleasePageUrl(releaseUrl)
+            ? releaseUrl
+            : $"https://github.com/{Owner}/{Repo}/releases/tag/v{latest}";
+
+        return new UpdateCheckResult
+        {
+            LocalVersion = localSem.ToString(),
+            LatestVersion = latest.ToString(),
+            HasUpdate = hasUpdate,
+            DownloadUrl = downloadUrl,
+            AssetName = assetName,
+            ReleaseUrl = html,
+            CanSilentInstall = hasUpdate && downloadUrl is not null && !portable,
+            IsPortable = portable
+        };
+    }
+
+    private static UpdateCheckResult UpToDate(string local, string releaseUrl) => new()
+    {
+        LocalVersion = local,
+        LatestVersion = local,
+        HasUpdate = false,
+        ReleaseUrl = releaseUrl,
+        IsPortable = IsPortableInstall()
+    };
+
+    /// <summary>
+    /// Official Setup / release-asset hosts only.
+    /// Rejects raw.githubusercontent.com and arbitrary githubusercontent subdomains
+    /// (user-controlled content).
+    /// </summary>
+    public static bool IsAllowedDownloadUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (uri.UserInfo.Length > 0)
+            return false;
+
+        string host = uri.Host;
+        string path = uri.AbsolutePath;
+
+        // Canonical release download: github.com/{owner}/{repo}/releases/download/...
+        if (host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("www.github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            string prefix = $"/{Owner}/{Repo}/releases/download/";
+            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                   && path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // GitHub CDN after redirect from /releases/download/
+        if (host.Equals("objects.githubusercontent.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("release-assets.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Length > 1 && path.Length < 2048;
+        }
+
+        return false;
+    }
+
+    /// <summary>Only official release pages may be opened via shell (no file: / js: / arbitrary hosts).</summary>
+    public static bool IsAllowedReleasePageUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || url.Length > 512) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (uri.UserInfo.Length > 0) return false;
+
+        string host = uri.Host;
+        if (!host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+            && !host.Equals("www.github.com", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string path = uri.AbsolutePath.TrimEnd('/');
+        string root = $"/{Owner}/{Repo}";
+        if (path.Equals(root, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (path.StartsWith(root + "/releases", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    /// <summary>MZ / PE header check before executing a downloaded Setup.</summary>
+    public static bool LooksLikePeExecutable(string path)
+    {
+        try
+        {
+            var fi = new FileInfo(path);
+            if (!fi.Exists || fi.Length < 64 || fi.Length > MaxSetupBytes)
+                return false;
+
+            using var fs = File.OpenRead(path);
+            Span<byte> mz = stackalloc byte[2];
+            if (fs.Read(mz) != 2) return false;
+            if (mz[0] != (byte)'M' || mz[1] != (byte)'Z') return false;
+
+            if (fi.Length < 0x40) return true;
+            fs.Seek(0x3C, SeekOrigin.Begin);
+            Span<byte> peOffBytes = stackalloc byte[4];
+            if (fs.Read(peOffBytes) != 4) return true;
+            int peOff = BitConverter.ToInt32(peOffBytes);
+            if (peOff <= 0 || peOff > fi.Length - 4) return true;
+            fs.Seek(peOff, SeekOrigin.Begin);
+            Span<byte> pe = stackalloc byte[4];
+            if (fs.Read(pe) != 4) return true;
+            return pe[0] == (byte)'P' && pe[1] == (byte)'E' && pe[2] == 0 && pe[3] == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasUninstallEntry()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        try
+        {
+            return HasUninstallEntryWindows();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool HasUninstallEntryWindows()
+    {
+        string[] roots =
+        {
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        };
+        foreach (var root in roots)
+        {
+            try
+            {
+                using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(root);
+                if (k is null) continue;
+                foreach (var sub in k.GetSubKeyNames())
+                {
+                    using var sk = k.OpenSubKey(sub);
+                    var name = sk?.GetValue("DisplayName") as string;
+                    if (name is not null
+                        && name.Contains("Spotify Discord Fixer", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            catch { /* ignore */ }
+        }
+        return false;
+    }
+
+    private static string ReadLocalVersion()
+    {
+        try
+        {
+            var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+            string? info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(info))
+            {
+                int plus = info.IndexOf('+');
+                if (plus >= 0) info = info[..plus];
+                if (SemVer.TryParse(info, out var sv)) return sv.ToString();
+                return info.Trim();
+            }
+            var v = asm.GetName().Version;
+            if (v != null) return $"{v.Major}.{v.Minor}.{v.Build}";
+        }
+        catch { /* ignore */ }
+        return "2.0.0";
+    }
+
+    private static HttpClient CreateClient(SocketsHttpHandler handler)
+    {
+        var c = new HttpClient(handler, disposeHandler: false)
+        {
+            Timeout = TimeSpan.FromSeconds(60)
+        };
+        c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        c.DefaultRequestHeaders.Accept.ParseAdd("*/*");
+        return c;
+    }
+
+    private static SocketsHttpHandler CreateHandler(bool allowAutoRedirect)
+    {
+        return new SocketsHttpHandler
+        {
+            AllowAutoRedirect = allowAutoRedirect,
+            AutomaticDecompression = DecompressionMethods.All,
+            ConnectTimeout = TimeSpan.FromSeconds(8),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            ConnectCallback = null
+        };
+    }
+}
