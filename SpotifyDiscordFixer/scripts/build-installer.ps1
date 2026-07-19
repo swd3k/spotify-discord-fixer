@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 param(
   [string[]]$Rid = @("win-x64", "win-x86", "win-arm64"),
-  [string]$Version = "2.0.0",
+  [string]$Version = "2.0.1",
   [switch]$PublishFirst,
   [switch]$SelfContained,
   [string]$IsccPath = ""

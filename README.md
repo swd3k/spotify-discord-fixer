@@ -7,7 +7,8 @@
 <h1 align="center">Spotify Discord Fixer</h1>
 
 <p align="center">
-  Восстанавливает статус Discord «Сейчас слушает Spotify», направляя домены Spotify через прокси (файл hosts).
+  Восстанавливает статус Discord <strong>«Сейчас слушает Spotify»</strong><br>
+  через системный файл <code>hosts</code> и прокси GeoHide (или ваш IP).
 </p>
 
 <p align="center">
@@ -21,184 +22,128 @@
 </p>
 
 <p align="center">
-  Разработчик: <a href="https://github.com/swd3k">swd3k</a>
+  <a href="https://github.com/swd3k">swd3k</a>
   ·
   <a href="https://github.com/swd3k/spotify-discord-fixer/releases">Релизы</a>
   ·
-  <a href="SpotifyDiscordFixer/CHANGELOG.md">История изменений</a>
+  <a href="SpotifyDiscordFixer/CHANGELOG.md">История</a>
   ·
   <a href="LICENSE">MIT</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe">
-    <img alt="Скачать Setup win-x64" src="https://img.shields.io/badge/⬇%20Скачать-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
+  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe">
+    <img alt="Скачать Setup win-x64" src="https://img.shields.io/badge/⬇%20Скачать-Setup%20win--x64-1DB954?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
   <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest">
-    <img alt="Все релизы" src="https://img.shields.io/badge/Все%20релизы-gray?style=for-the-badge" />
+    <img alt="Все релизы" src="https://img.shields.io/badge/Все%20релизы-2a292d?style=for-the-badge" />
   </a>
 </p>
 
 <p align="center">
-  <sub>Актуальная версия: <strong>2.0.0</strong> (Photino, Setup ~2.6 МБ) ·
-  <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe"><code>Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe</code></a>
-  · portable zip на <a href="https://github.com/swd3k/spotify-discord-fixer/releases">GitHub Releases</a></sub>
+  <sub>
+    Актуальная версия: <strong>2.0.1</strong>
+    · <a href="https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe"><code>Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe</code></a>
+    · portable на <a href="https://github.com/swd3k/spotify-discord-fixer/releases">Releases</a>
+  </sub>
 </p>
 
 ---
 
 > [!NOTE]
-> **Неофициальный** инструмент с открытым исходным кодом. Не связан со Spotify, Discord или GeoHide.  
-> **Используйте на свой страх и риск.** Для изменения `hosts` потребуются права администратора (UAC).
+> **Неофициальный** open-source. Не связан со Spotify, Discord или GeoHide.  
+> **На свой страх и риск.** Для изменения `hosts` нужны права администратора (UAC).
 
-**v2.0** — лёгкое Windows-приложение (**.NET 8 + Photino / WebView2**, Setup ~2–3 МБ) вместо Electron (~390 МБ).
-Помогает вернуть статус «🎧 сейчас слушает Spotify» в Discord: пишет в системный `hosts` блок
-с перенаправлением доменов Spotify на прокси GeoHide (или ваш IP).
-
-Исходники: каталог [`SpotifyDiscordFixer/`](SpotifyDiscordFixer/).  
-Legacy Electron 1.x убран из `main` (см. историю git и старые теги Releases).
+**v2.x** — Windows-приложение на **.NET 8 + Photino / WebView2** (Setup ~2.6 МБ).  
+Код: [`SpotifyDiscordFixer/`](SpotifyDiscordFixer/).
 
 ---
 
 > [!CAUTION]
-> ### 🚫 ФЕЙКИ
-> Я **не веду** никакие другие страницы, группы, Telegram- или YouTube-каналы по этому проекту.  
-> **Единственный** официальный источник — **этот репозиторий на GitHub**.  
-> Всё, что распространяется от моего имени вне этого репозитория — **ФЕЙК**.
+> ### 🚫 Фейки
+> Единственный официальный источник — **этот репозиторий GitHub**.  
+> Всё остальное под этим именем — фейк.
 
 > [!WARNING]
-> ### 🛡️ АНТИВИРУСЫ и SmartScreen
-> Программа меняет системный файл `hosts` и запрашивает права администратора (UAC). Антивирус или
-> Windows SmartScreen могут среагировать на неподписанную сборку.  
-> Это **не вирус**: исходный код открыт — изучите его или соберите сами.
->
-> Исполняемый файл **не подписан** платным сертификатом, поэтому возможно сообщение
-> «Защитник Windows предотвратил запуск». Если доверяете источнику (и сверили загрузку с GitHub Releases) —
-> **«Подробнее» → «Выполнить в любом случае»**. При необходимости добавьте папку приложения в исключения.
+> ### 🛡️ SmartScreen и антивирусы
+> Приложение меняет `hosts` и запрашивает UAC. Неподписанный Setup может вызвать предупреждение Windows.  
+> Исходники открыты — проверяйте и собирайте сами при необходимости.  
+> **«Подробнее» → «Выполнить в любом случае»**, если доверяете релизу с GitHub.
 
 > [!IMPORTANT]
-> ### 🔐 Что важно понимать
-> - Берите сборки **только** со страницы [Releases](https://github.com/swd3k/spotify-discord-fixer/releases).  
-> - Перенаправляются в том числе домены **авторизации** Spotify — трафик идёт через GeoHide (или ваш IP).  
-> - Перед изменением создаётся резервная копия `hosts`; откат — кнопкой **«Сбросить hosts»**.  
-> - Не уверены? Соберите программу из исходников (инструкция ниже).  
-> - **v2.0 — только Windows.** Для macOS/Linux смотрите старые теги 1.x (Electron).
+> - Скачивайте **только** с [Releases](https://github.com/swd3k/spotify-discord-fixer/releases).  
+> - Перенаправляются и домены **авторизации** Spotify — трафик через GeoHide/ваш IP.  
+> - Перед записью — бэкап в **Загрузки**; откат — **«Сбросить hosts»**.  
+> - **v2 — только Windows.** Старые 1.x (Electron) — на прошлых тегах (в т.ч. macOS/Linux).
 
 ---
 
-## ⚙️ Что делает приложение
+## ⚙️ Как это работает
 
-1. Резолвит `geohide.ru`, собирает IP прокси-узлов и проверяет доступность по **TCP :443**.  
-2. Позволяет **ввести свой IPv4**, проверить его тем же способом и выбрать для `hosts`.  
-3. По **«Обновить и применить»** (если узел выбран — на кнопке показывается его IP) запрашивает UAC,
-   **сначала** сохраняет бэкап `hosts_backup_YYYY-MM-DD_HH-mm.txt` в папку **Загрузки**,
-   **удаляет** старый блок SDF и **конфликтующие** строки Spotify,
-   затем пишет новый блок `#spotify-discord-hosts` … `#end-spotify-discord-hosts`
-   **только** в `%SystemRoot%\System32\drivers\etc\hosts`.  
-4. В `hosts` попадает **один** узел (выбранный или лучший по задержке). После записи проверяется
-   перенаправление; активный узел периодически мониторится.  
-5. **«Сбросить hosts»** удаляет блок SDF (ручные Spotify-строки вне блока не трогает); кэш DNS сбрасывается.
+1. Резолв `geohide.ru` + резервные IP, проверка **TCP :443**.  
+2. Выбор лучшего / ручной / **свой IPv4**.  
+3. **Обновить и применить** → UAC → бэкап → снятие конфликтов → блок  
+   `#spotify-discord-hosts` … `#end-spotify-discord-hosts`.  
+4. Мониторинг активного узла; **Сбросить hosts** убирает только managed-блок.  
 
 ---
 
-## 🔒 Безопасность
+## 📥 Скачать
 
-- Трафик указанных доменов Spotify (включая `accounts.spotify.com`, `login5.spotify.com`) идёт
-  через **сторонний** сервис GeoHide или через IP, который вы указали сами.  
-- Программа **не** ставит корневые сертификаты и **не** перехватывает TLS сама по себе —
-  итоговая безопасность зависит от выбранного прокси.  
-- Изменения — только после UAC и (при первом применении) окна-согласия; бэкап + полный откат.  
-- Нет телеметрии; логи обновлений (если есть) остаются локально.
+| Файл | Для кого |
+|------|----------|
+| [Setup **win-x64**](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe) | **Рекомендуется** |
+| [Setup win-x86](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x86.exe) | 32-bit |
+| [Setup win-arm64](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-arm64.exe) | ARM |
+| Portable `*.zip` | Без установщика |
 
----
+**Среда:** [.NET 8 Desktop](https://dotnet.microsoft.com/download/dotnet/8.0) · [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
 
-## 📥 Скачать готовые сборки
-
-Пакеты — на странице **[Releases](https://github.com/swd3k/spotify-discord-fixer/releases)**.
-
-| Пакет | Платформа | Содержимое |
-|-------|-----------|------------|
-| `Spotify-Discord-Fixer-Setup-2.0.0-win-x64.exe` | Windows x64 | **Установщик** — *большинству пользователей* (~2.6 МБ) |
-| `Spotify-Discord-Fixer-Setup-2.0.0-win-x86.exe` | Windows x86 | Установщик |
-| `Spotify-Discord-Fixer-Setup-2.0.0-win-arm64.exe` | Windows ARM64 | Установщик |
-| `Spotify-Discord-Fixer-win-*.zip` | Windows | Portable |
-
-**Среда выполнения (framework-dependent):** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) и [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
-
-1. Скачайте Setup для своей архитектуры.  
-2. Запустите (при применении hosts потребуется UAC).  
-3. Обновите список узлов (или введите свой IP) → **Обновить и применить**.  
-4. Перезапустите Discord и Spotify.  
-5. Если что-то не так → **Сбросить hosts**.
-
-**Автообновление.** Установленная версия (Program Files) может проверять обновления на GitHub Releases.
-Portable — обновляйте вручную с Releases.
+1. Установите → 2. Обновите список узлов → 3. **Применить** → 4. Перезапустите Discord и Spotify.
 
 ---
 
 ## ✨ Возможности
 
-- 🚀 Автовыбор лучшего прокси по задержке или **ручной выбор** узла  
-- 🎯 **Свой IP** — ввод, проверка TCP :443, применение в hosts  
-- ✅ Проверка перенаправления после записи + мониторинг активного узла  
-- 👀 Предпросмотр блока hosts и просмотр реально установленного  
-- 🖥️ Трей, автозапуск вместе с системой (свёрнуто в трей)  
-- 🎨 Светлая / тёмная тема  
-- ♻️ Ротация резервных копий hosts (последние 5)  
-- 📦 Лёгкий Setup Windows (~2.6 МБ) + portable zip  
-- 🔄 Проверка обновлений из приложения  
+| | |
+|--|--|
+| 🚀 | Лучший узел по задержке или ручной выбор |
+| 🎯 | Свой IP + проверка :443 |
+| 💾 | Бэкап hosts в Загрузки |
+| 👀 | Превью блока и текущего hosts |
+| 🖥️ | Трей, single-instance, автозапуск |
+| 🎨 | Светлая / тёмная тема |
+| 🔄 | Проверка обновлений в приложении |
+| 📦 | Setup ~2.6 МБ (не Electron) |
 
 ---
 
-## 🛠️ Сборка из исходников (2.0)
-
-Нужны **.NET 8 SDK** и (для Setup) **Inno Setup 6**.
+## 🛠️ Сборка
 
 ```powershell
 cd SpotifyDiscordFixer
 dotnet test -c Release
 dotnet run --project src\SpotifyDiscordFixer.Ui -c Release
-
-# portable + Setup для всех архитектур
-.\scripts\build-installer.ps1 -Version 2.0.0 -PublishFirst
-```
-
-Артефакты: `SpotifyDiscordFixer/dist/`.
-
-## 👨‍💻 Для разработки
-
-```powershell
-cd SpotifyDiscordFixer
-dotnet test
-dotnet run --project src\SpotifyDiscordFixer.Ui -c Debug
+.\scripts\build-installer.ps1 -Version 2.0.1 -PublishFirst
 ```
 
 | Слой | Назначение |
 |------|------------|
-| `SpotifyDiscordFixer.Core` | Логика блока hosts (без I/O) |
-| `SpotifyDiscordFixer.Infrastructure` | DNS, TCP, hosts, обновления |
-| `SpotifyDiscordFixer.Ui` | Photino + `wwwroot` |
+| Core | Логика hosts |
+| Infrastructure | DNS, TCP, hosts, update |
+| Ui | Photino + wwwroot |
 
 ---
 
-## 📂 Структура репозитория
+## 📂 Репозиторий
 
 ```
-├── SpotifyDiscordFixer/     # v2.0 — .NET 8 + Photino
-│   ├── src/                 # Core, Infrastructure, Ui
-│   ├── tests/
-│   ├── scripts/             # publish + Inno
-│   ├── installer/
-│   └── CHANGELOG.md
-├── docs/                    # banner
-├── .github/workflows/       # CI: dotnet test + релиз Setup
-├── CHANGELOG.md             # указатель + архив 1.x
-├── LICENSE
-└── README.md
+SpotifyDiscordFixer/   ← продукт 2.x
+docs/                  ← banner
+.github/workflows/     ← CI
+README.md · CHANGELOG.md · LICENSE
 ```
-
-Исходники Electron 1.x удалены из `main` (история в git и билды на старых тегах Releases).
 
 ---
 

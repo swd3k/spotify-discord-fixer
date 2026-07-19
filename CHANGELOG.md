@@ -1,28 +1,28 @@
 # История изменений
 
-Актуальная история **2.0+** ведётся в  
+Полная история **2.x** — в  
 **[SpotifyDiscordFixer/CHANGELOG.md](SpotifyDiscordFixer/CHANGELOG.md)**.
-
-Ниже — краткая архивная запись ветки **1.x (Electron)**. Сборки 1.x по-прежнему доступны на [Releases](https://github.com/swd3k/spotify-discord-fixer/releases) как legacy.
 
 ---
 
+## [2.0.1] — 2026-07-19
+
+UI/UX polish, русское оформление, чистый репозиторий (без Electron).  
+→ [подробности](SpotifyDiscordFixer/CHANGELOG.md#201--2026-07-19)
+
 ## [2.0.0] — 2026-07-19
 
-См. [SpotifyDiscordFixer/CHANGELOG.md](SpotifyDiscordFixer/CHANGELOG.md).
-
-**Кратко:** rewrite на .NET 8 + Photino, Setup ~2.6 МБ, только Windows.
+Rewrite: Photino + .NET 8, Setup ~2.6 МБ, Windows only.  
+→ [подробности](SpotifyDiscordFixer/CHANGELOG.md#200--2026-07-19)
 
 ---
 
 ## Архив 1.x (Electron)
 
-### [1.1.0] — 2026-07-15
+Сборки остаются на [Releases](https://github.com/swd3k/spotify-discord-fixer/releases) (legacy).
 
-- Бэкап hosts в «Загрузки» перед Apply/Remove.
-- Снятие конфликтующих Spotify-строк перед записью.
-- Исправление UI кнопки «Применяю…».
+### [1.1.0] — 2026-07-15
+Бэкап hosts в Загрузки, снятие конфликтов Spotify-строк, UI-фикс кнопки.
 
 ### [1.0.0] — 2026
-
-- Первый публичный релиз (Electron): hosts → GeoHide, свой IP, трей, Setup/portable, Linux/macOS.
+Первый публичный релиз (Electron, multi-OS).

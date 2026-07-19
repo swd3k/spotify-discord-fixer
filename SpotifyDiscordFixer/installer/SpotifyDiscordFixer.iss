@@ -3,7 +3,7 @@
 ;   /DArch=x64|x86|arm64
 ;   /DSourceDir=...   (published UI folder)
 ;   /DOutName=...     (Setup.exe base name without extension)
-;   /DMyAppVersion=2.0.0
+;   /DMyAppVersion=2.0.1
 
 #ifndef Arch
   #define Arch "x64"
@@ -14,11 +14,11 @@
 #endif
 
 #ifndef OutName
-  #define OutName "Spotify-Discord-Fixer-Setup-2.0.0-win-x64"
+  #define OutName "Spotify-Discord-Fixer-Setup-2.0.1-win-x64"
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.0.0"
+  #define MyAppVersion "2.0.1"
 #endif
 
 #define MyAppName "Spotify Discord Fixer"

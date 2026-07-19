@@ -1,61 +1,68 @@
 # История изменений
 
-Все заметные изменения **Spotify Discord Fixer** фиксируются здесь.
-
-Формат близок к [Keep a Changelog](https://keepachangelog.com/).  
-Версии — [Semantic Versioning](https://semver.org/).
+Все заметные изменения **Spotify Discord Fixer**.  
+Формат близок к [Keep a Changelog](https://keepachangelog.com/) · [SemVer](https://semver.org/).
 
 ---
 
 ## [Unreleased]
 
 ### Добавлено
-- *(пока пусто)*
+- *(пусто)*
 
 ### Исправлено
-- *(пока пусто)*
+- *(пусто)*
+
+---
+
+## [2.0.1] — 2026-07-19
+
+**Полировка 2.0** — UI/UX, сообщения на русском, порядок в репозитории.
+
+### Исправлено
+- **Баннер обновлений** — корректное поле `latest`, кнопки «Установить» / «Открыть Releases», `needsBrowser` и выход после silent-install.
+- **Кнопки Apply / Reset** — единое состояние disabled/loading, без «залипания» после busy.
+- **UAC** — понятная отмена, таймаут elevated-записи, проверка, что блок hosts реально записан.
+- **Dismiss IP** — сохраняется в `localStorage` между запусками.
+- **Трей** — balloon один раз за процесс.
+
+### Изменено
+- UI: компактная сетка, сворачиваемый блок «Как это работает», зелёный бейдж «Активно», модалка (фон + Esc), спиннер «Применяю…».
+- Документация и release notes **на русском**.
+- Репозиторий очищен от Electron/Node (остался только Photino 2.x).
+- Версия **2.0.1**.
 
 ---
 
 ## [2.0.0] — 2026-07-19
 
-**Крупный rewrite:** Electron (~391 МБ) → **.NET 8 + Photino/WebView2** (Setup ~несколько МБ). Только Windows.
+**Крупный rewrite:** Electron (~391 МБ) → **.NET 8 + Photino/WebView2** (Setup ~2.6 МБ). Только Windows.
 
 ### Добавлено
-- Структура решения: Core / Infrastructure / Ui (по образцу AntiLag Next).
-- Чистый движок блока hosts (маркеры `#spotify-discord-hosts` … `#end-spotify-discord-hosts` **без смены** — путь обновления с 1.x).
-- DNS GeoHide + резервные IP, проба TCP :443.
-- Применить / сбросить hosts: бэкап в Загрузки, снятие конфликтов при apply, flush DNS, elev при необходимости.
-- UI Photino: список IP, свой IP, превью, лог, согласие, тема, трей, single-instance, автозапуск.
-- Автообновление с GitHub Releases (allowlist Setup URL, проверка PE, silent из Program Files).
-- Multi-arch Setup + portable zip: win-x64, win-x86, win-arm64.
-- Полировка: banner обновлений, отмена UAC, dismiss IP в localStorage.
+- Слои Core / Infrastructure / Ui.
+- Блок hosts с маркерами 1.x (без смены — безопасный апгрейд).
+- GeoHide + резервные IP, TCP :443, свой IP.
+- Apply/Remove, бэкап в «Загрузки», трей, single-instance, автозапуск.
+- Автообновление с GitHub (allowlist Setup, PE).
+- Setup и portable: win-x64 / x86 / arm64.
 
-### Изменено
-- Имя продукта: **Spotify Discord Fixer**.
-- Имена Setup: `Spotify-Discord-Fixer-Setup-{version}-{rid}.exe`.
-- Платформы: **только Windows** (macOS/Linux — legacy Electron 1.x на старых тегах).
-
-### Удалено
-- Electron / React / Node из поставляемого бинарника 2.0.
-
-### Примечания
-- Нужны [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) и [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
-- Для записи hosts — права администратора (UAC).
+### Требования
+- Windows 10/11 · .NET 8 Desktop · WebView2 · UAC для hosts.
 
 ---
 
 ## Карта версий
 
-| Версия | Дата | Кратко |
-|--------|------|--------|
-| **2.0.0** | 2026-07-19 | Photino rewrite, лёгкий Setup, автообновление |
-| **1.1.0** | 2026-07-15 | Electron: бэкап в Загрузки, снятие конфликтов |
-| **1.0.0** | 2026 | Первый публичный релиз Electron |
+| Версия | Дата | Суть |
+|--------|------|------|
+| **2.0.1** | 2026-07-19 | UI/UX polish, RU docs, cleanup repo |
+| **2.0.0** | 2026-07-19 | Photino rewrite, лёгкий Setup |
+| **1.1.0** | 2026-07-15 | Electron: бэкап Downloads, конфликты |
+| **1.0.0** | 2026 | Первый Electron-релиз |
 
 ---
 
 ## Ссылки
 
-- Репозиторий: https://github.com/swd3k/spotify-discord-fixer  
-- Релизы: https://github.com/swd3k/spotify-discord-fixer/releases  
+- [Репозиторий](https://github.com/swd3k/spotify-discord-fixer)  
+- [Релизы](https://github.com/swd3k/spotify-discord-fixer/releases)  

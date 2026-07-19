@@ -24,7 +24,7 @@ public sealed class UpdateService
     public const string ReleasesAtom = "https://github.com/swd3k/spotify-discord-fixer/releases.atom";
     public const string ReleasesLatestRedirect = "https://github.com/swd3k/spotify-discord-fixer/releases/latest";
 
-    public const string UserAgent = "SpotifyDiscordFixer-Updater/2.0.0";
+    public const string UserAgent = "SpotifyDiscordFixer-Updater/2.0.1";
 
     /// <summary>Stable error codes for UI i18n (never OS-locale exception text).</summary>
     public static class ErrorCodes
@@ -796,7 +796,7 @@ public sealed class UpdateService
             if (v != null) return $"{v.Major}.{v.Minor}.{v.Build}";
         }
         catch { /* ignore */ }
-        return "2.0.0";
+        return "2.0.1";
     }
 
     private static HttpClient CreateClient(SocketsHttpHandler handler)
