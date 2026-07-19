@@ -56,7 +56,8 @@
 Помогает вернуть статус «🎧 сейчас слушает Spotify» в Discord: пишет в системный `hosts` блок
 с перенаправлением доменов Spotify на прокси GeoHide (или ваш IP).
 
-Исходники 2.0: каталог [`SpotifyDiscordFixer/`](SpotifyDiscordFixer/). Legacy Electron 1.x остаётся в корне для истории.
+Исходники: каталог [`SpotifyDiscordFixer/`](SpotifyDiscordFixer/).  
+Legacy Electron 1.x убран из `main` (см. историю git и старые теги Releases).
 
 ---
 
@@ -165,14 +166,7 @@ dotnet run --project src\SpotifyDiscordFixer.Ui -c Release
 
 Артефакты: `SpotifyDiscordFixer/dist/`.
 
-### Legacy Electron 1.x
-
-В корне репозитория остаётся старый стек (`electron/`, `src/` React, `npm`).  
-Сборка 1.x: `npm install` → `npm run dist:win` (см. историю коммитов 1.1.0).
-
----
-
-## 👨‍💻 Для разработки (2.0)
+## 👨‍💻 Для разработки
 
 ```powershell
 cd SpotifyDiscordFixer
@@ -191,18 +185,20 @@ dotnet run --project src\SpotifyDiscordFixer.Ui -c Debug
 ## 📂 Структура репозитория
 
 ```
-├── SpotifyDiscordFixer/     # ★ v2.0 — .NET 8 + Photino (основной продукт)
+├── SpotifyDiscordFixer/     # v2.0 — .NET 8 + Photino
 │   ├── src/                 # Core, Infrastructure, Ui
 │   ├── tests/
 │   ├── scripts/             # publish + Inno
-│   └── installer/
-├── electron/                # legacy 1.x main/preload
-├── src/                     # legacy 1.x React UI
-├── shared/                  # legacy 1.x hosts logic (TS)
+│   ├── installer/
+│   └── CHANGELOG.md
 ├── docs/                    # banner
+├── .github/workflows/       # CI: dotnet test + релиз Setup
+├── CHANGELOG.md             # указатель + архив 1.x
 ├── LICENSE
 └── README.md
 ```
+
+Исходники Electron 1.x удалены из `main` (история в git и билды на старых тегах Releases).
 
 ---
 

@@ -1,19 +1,28 @@
-# Changelog
+# История изменений
 
-## [1.1.0] — 2026-07-15
+Актуальная история **2.0+** ведётся в  
+**[SpotifyDiscordFixer/CHANGELOG.md](SpotifyDiscordFixer/CHANGELOG.md)**.
 
-### Исправлено
-- **Бэкап hosts при Apply/Remove.** Резервная копия создаётся **до** изменения system hosts в папке **«Загрузки»** (`Downloads\hosts_backup_YYYY-MM-DD_HH-mm.txt`). Полный путь показывается в сообщении об успехе.
-- **Конфликтующие Spotify-строки.** Перед записью нового блока удаляются старые записи доменов Spotify (hosts использует только первую строку по имени).
-- **Кнопка «Применяю…».** Исправлен визуальный баг: иконка загрузки и текст больше не слипаются; корректный отступ и цвет спиннера.
+Ниже — краткая архивная запись ветки **1.x (Electron)**. Сборки 1.x по-прежнему доступны на [Releases](https://github.com/swd3k/spotify-discord-fixer/releases) как legacy.
 
-### Изменено
-- Версия приложения **1.1.0**.
-- Имя бэкапа: `hosts_backup_YYYY-MM-DD_HH-mm.txt` (без секунд).
+---
 
-## [1.0.0] — 2026
+## [2.0.0] — 2026-07-19
 
-### Новое
-- Управление блоком hosts для доменов Spotify → прокси GeoHide.
-- Выбор узла, свой IP, трей, автозапуск, тёмная/светлая тема.
-- Setup / portable для Windows x64 и arm64.
+См. [SpotifyDiscordFixer/CHANGELOG.md](SpotifyDiscordFixer/CHANGELOG.md).
+
+**Кратко:** rewrite на .NET 8 + Photino, Setup ~2.6 МБ, только Windows.
+
+---
+
+## Архив 1.x (Electron)
+
+### [1.1.0] — 2026-07-15
+
+- Бэкап hosts в «Загрузки» перед Apply/Remove.
+- Снятие конфликтующих Spotify-строк перед записью.
+- Исправление UI кнопки «Применяю…».
+
+### [1.0.0] — 2026
+
+- Первый публичный релиз (Electron): hosts → GeoHide, свой IP, трей, Setup/portable, Linux/macOS.

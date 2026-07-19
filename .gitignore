@@ -1,12 +1,24 @@
-﻿node_modules/
-dist/
-release/
+# Dependencies / local junk
+node_modules/
+.npm/
 *.log
 .DS_Store
 Thumbs.db
 .env*
 !.env.example
 .claude/
-*.tsbuildinfo
 .vscode/
 .idea/
+
+# Build outputs (Electron legacy + .NET)
+dist/
+release/
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+*.tsbuildinfo
+
+# Local publish under solution
+SpotifyDiscordFixer/dist/
