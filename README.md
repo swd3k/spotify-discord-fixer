@@ -73,9 +73,9 @@
 
 > [!IMPORTANT]
 > - Скачивайте **только** с [Releases](https://github.com/swd3k/spotify-discord-fixer/releases).  
-> - Перенаправляются и домены **авторизации** Spotify — трафик через GeoHide/ваш IP.  
+> - Перенаправляются и домены **авторизации** Spotify — трафик через GeoHide / ваш IP.  
 > - Перед записью — бэкап в **Загрузки**; откат — **«Сбросить hosts»**.  
-> - **v2 — только Windows.** Старые 1.x (Electron) — на прошлых тегах (в т.ч. macOS/Linux).
+> - **v2 — только Windows.** Старые 1.x (Electron) — на прошлых тегах (в т.ч. macOS / Linux).
 
 ---
 
@@ -85,7 +85,7 @@
 2. Выбор лучшего / ручной / **свой IPv4**.  
 3. **Обновить и применить** → UAC → бэкап → снятие конфликтов → блок  
    `#spotify-discord-hosts` … `#end-spotify-discord-hosts`.  
-4. Мониторинг активного узла; **Сбросить hosts** убирает только managed-блок.  
+4. Мониторинг активного узла; **Сбросить hosts** убирает только managed-блок.
 
 ---
 
@@ -93,14 +93,20 @@
 
 | Файл | Для кого |
 |------|----------|
-| [Setup **win-x64**](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe) | **Рекомендуется** |
+| [Setup **win-x64**](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe) | **Рекомендуется** (Intel / AMD 64-bit) |
 | [Setup win-x86](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x86.exe) | 32-bit |
-| [Setup win-arm64](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-arm64.exe) | ARM |
-| Portable `*.zip` | Без установщика |
+| [Setup win-arm64](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-arm64.exe) | ARM64 |
+| Portable `Spotify-Discord-Fixer-win-*.zip` | Без установщика |
 
-**Среда:** [.NET 8 Desktop](https://dotnet.microsoft.com/download/dotnet/8.0) · [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
+**Среда:** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) · [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (часто уже установлен).
 
-1. Установите → 2. Обновите список узлов → 3. **Применить** → 4. Перезапустите Discord и Spotify.
+### Быстрый старт
+
+1. Установите Setup (запрос UAC — нормально).  
+2. **Обновить** список узлов (или введите свой IP).  
+3. **Обновить и применить** → согласие + UAC.  
+4. Перезапустите **Discord** и **Spotify**.  
+5. Если что-то не так → **Сбросить hosts**.
 
 ---
 
@@ -108,14 +114,14 @@
 
 | | |
 |--|--|
-| 🚀 | Лучший узел по задержке или ручной выбор |
-| 🎯 | Свой IP + проверка :443 |
-| 💾 | Бэкап hosts в Загрузки |
+| 🚀 | Лучший узел по задержке **TCP :443** или ручной выбор |
+| 🎯 | Свой IPv4 + проверка доступности |
+| 💾 | Бэкап hosts в **Загрузки** перед изменениями |
 | 👀 | Превью блока и текущего hosts |
-| 🖥️ | Трей, single-instance, автозапуск |
+| 🖥️ | Трей, один экземпляр, автозапуск свёрнуто |
 | 🎨 | Светлая / тёмная тема |
-| 🔄 | Проверка обновлений в приложении |
-| 📦 | Setup ~2.6 МБ (не Electron) |
+| 🔄 | Проверка обновлений из приложения |
+| 📦 | Setup **~2.6 МБ** (не Electron ~390 МБ) |
 
 ---
 
@@ -125,23 +131,25 @@
 cd SpotifyDiscordFixer
 dotnet test -c Release
 dotnet run --project src\SpotifyDiscordFixer.Ui -c Release
+
 .\scripts\build-installer.ps1 -Version 2.0.1 -PublishFirst
 ```
 
 | Слой | Назначение |
 |------|------------|
-| Core | Логика hosts |
-| Infrastructure | DNS, TCP, hosts, update |
-| Ui | Photino + wwwroot |
+| **Core** | Логика блока hosts |
+| **Infrastructure** | DNS, TCP, hosts, update |
+| **Ui** | Photino + wwwroot |
+
+Выход: `dist/installers/`, `dist/*.zip`.
 
 ---
 
 ## 📂 Репозиторий
 
 ```
-SpotifyDiscordFixer/   ← продукт 2.x
-docs/                  ← banner
-.github/workflows/     ← CI
+SpotifyDiscordFixer/     ← продукт 2.x (Photino)
+docs/                    ← banner
 README.md · CHANGELOG.md · LICENSE
 ```
 
