@@ -57,6 +57,13 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Allow selecting log / preview text */
+.preview, .logs, .meta, #hostsMeta, #installedPreview {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
 body {
   background:
     radial-gradient(circle at 5% 5%, rgba(29, 185, 84, 0.14) 0%, transparent 45%),

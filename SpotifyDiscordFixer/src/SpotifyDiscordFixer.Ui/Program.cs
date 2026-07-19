@@ -22,6 +22,7 @@ internal static class Program
     private static volatile bool _forceExit;
     private static volatile bool _startHidden;
     private static int _heavyOp;
+    private static int _trayBalloonShown; // 0/1 process-local
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -127,9 +128,12 @@ internal static class Program
                 TrayService.HideWindow(hwnd);
             else
                 w.SetMinimized(true);
-            if (showBalloon)
+            // One balloon per process; UI also shows a one-shot toast via localStorage
+            if (showBalloon && Interlocked.CompareExchange(ref _trayBalloonShown, 1, 0) == 0)
+            {
                 _tray?.ShowBalloon("Spotify Discord Fixer",
                     "Свёрнуто в трей. Двойной клик — открыть. Выход — из меню трея.");
+            }
             try
             {
                 ReplyBroadcast(new { eventName = "trayMinimized" });
@@ -411,7 +415,7 @@ internal static class Program
             {
                 success = true,
                 hasUpdate = false,
-                message = "Already up to date",
+                message = "Уже установлена актуальная версия",
                 state = BuildState(),
             };
         }
@@ -423,7 +427,7 @@ internal static class Program
                 success = false,
                 needsBrowser = true,
                 releaseUrl = check.ReleaseUrl ?? UpdateService.ReleasesPage,
-                message = "Silent install requires Program Files install. Open Releases page.",
+                message = "Тихая установка доступна только из Program Files. Откройте Releases и скачайте Setup.",
                 state = BuildState(),
             };
         }
@@ -488,6 +492,16 @@ internal static class Program
             _lastUpdateCheck = result;
             if (string.IsNullOrEmpty(result.Error))
                 _lastBackgroundUpdateCheckTicks = Environment.TickCount64;
+
+            // Notify UI so banner appears without waiting for manual check
+            if (result.HasUpdate)
+            {
+                ReplyOnUi(null, new
+                {
+                    eventName = "updateAvailable",
+                    update = MapUpdateState(result),
+                });
+            }
         }
         catch { /* ignore */ }
     }

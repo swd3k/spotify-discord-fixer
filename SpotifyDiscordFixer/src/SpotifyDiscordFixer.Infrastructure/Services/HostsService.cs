@@ -251,12 +251,52 @@ public sealed class HostsService
                 WindowStyle = ProcessWindowStyle.Hidden,
             };
 
-            using var proc = Process.Start(psi)
-                ?? throw new InvalidOperationException("Не удалось запустить elevated PowerShell.");
-            proc.WaitForExit(120_000);
-            if (proc.ExitCode != 0)
-                throw new InvalidOperationException(
-                    $"Elevated write failed (exit {proc.ExitCode}). Отменено в UAC или нет прав.");
+            Process? proc;
+            try
+            {
+                proc = Process.Start(psi);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // User cancelled UAC consent
+                throw new InvalidOperationException("Операция отменена в окне UAC.");
+            }
+
+            if (proc is null)
+                throw new InvalidOperationException("Не удалось запустить elevated PowerShell (UAC отменён?).");
+
+            using (proc)
+            {
+                if (!proc.WaitForExit(120_000))
+                {
+                    try { proc.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                    throw new InvalidOperationException("Таймаут elevated-записи hosts (120 с).");
+                }
+
+                int code;
+                try { code = proc.ExitCode; }
+                catch { code = -1; }
+
+                if (code != 0)
+                    throw new InvalidOperationException(
+                        $"Elevated write failed (exit {code}). Отменено в UAC или нет прав.");
+            }
+
+            // Confirm write actually landed (content we prepared is still on disk as source of truth)
+            try
+            {
+                if (File.Exists(contentPath) && File.Exists(_hostsPath))
+                {
+                    // Best-effort: if prepared content had managed block, hosts should too after apply
+                    string prepared = File.ReadAllText(contentPath);
+                    string after = File.ReadAllText(_hostsPath);
+                    if (prepared.Contains(HostsBlock.StartMarker, StringComparison.Ordinal)
+                        && !after.Contains(HostsBlock.StartMarker, StringComparison.Ordinal))
+                        throw new IOException("После elevated-записи блок hosts не найден — запись не удалась.");
+                }
+            }
+            catch (IOException) { throw; }
+            catch { /* ignore transient read issues */ }
         }
         finally
         {

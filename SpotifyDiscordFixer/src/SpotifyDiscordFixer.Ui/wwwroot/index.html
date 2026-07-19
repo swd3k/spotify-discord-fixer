@@ -276,12 +276,25 @@
     let loadingIps = false;
     let previewText = '';
     let updateInfo = null; // { hasUpdate, version, canSilent, releaseUrl, notes? }
-    const dismissed = new Set();
+    const DISMISS_KEY = 'spf_dismissed_ips_v1';
+    const dismissed = new Set(loadDismissed());
     const CONSENT_KEY = 'spf_consent_v1';
     const RELEASES_URL = 'https://github.com/swd3k/spotify-discord-fixer/releases';
     const GITHUB_URL = 'https://github.com/swd3k/spotify-discord-fixer';
     let warnedDown = false;
     const logLines = [];
+
+    function loadDismissed() {
+      try {
+        const raw = localStorage.getItem(DISMISS_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr.filter(x => typeof x === 'string') : [];
+      } catch (e) { return []; }
+    }
+    function saveDismissed() {
+      try { localStorage.setItem(DISMISS_KEY, JSON.stringify([...dismissed])); } catch (e) {}
+    }
 
     const ICONS = {
       check: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
@@ -315,10 +328,14 @@
     function send(cmd, data = {}) {
       return new Promise((resolve, reject) => {
         const id = 'm' + (++seq);
+        let ms = 30000;
+        if (cmd === 'getIps') ms = 60000;
+        else if (cmd === 'checkUpdate') ms = 45000;
+        else if (cmd === 'startUpdate' || cmd === 'apply' || cmd === 'remove') ms = 180000;
         const t = setTimeout(() => {
           pending.delete(id);
           reject(new Error('timeout'));
-        }, cmd === 'getIps' ? 60000 : 120000);
+        }, ms);
         pending.set(id, { resolve, reject, t });
         if (!hostSend(JSON.stringify({ id, cmd, ...data }))) {
           clearTimeout(t); pending.delete(id);
@@ -330,23 +347,28 @@
     function onHostMessage(raw) {
       try {
         const env = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (env.payload?.eventName === 'trayMinimized') {
+        const pl = env.payload;
+        if (pl?.eventName === 'trayMinimized') {
           if (!localStorage.getItem('spf_tray_hint_seen')) {
             localStorage.setItem('spf_tray_hint_seen', '1');
             toast('Программа свёрнута в трей. Чтобы выйти полностью — «Выход» в меню значка.', 'info');
           }
           return;
         }
-        // Push-style update notification from host (Wave 4)
-        if (env.payload?.eventName === 'updateAvailable' || env.payload?.hasUpdate === true) {
-          applyUpdateInfo(env.payload);
+        // Host push after background check: { eventName, update: { hasUpdate, latest, ... } }
+        if (pl?.eventName === 'updateAvailable' && pl.update) {
+          applyUpdateInfo(pl.update);
+          return;
+        }
+        if (pl?.eventName === 'updateAvailable' && pl.hasUpdate) {
+          applyUpdateInfo(pl);
           return;
         }
         if (env.id && pending.has(env.id)) {
           const p = pending.get(env.id);
           pending.delete(env.id);
           clearTimeout(p.t);
-          p.resolve(env.payload);
+          p.resolve(pl);
         }
       } catch (e) {}
     }
@@ -490,6 +512,7 @@
     /* —— IP list (S7 dismiss) —— */
     function dismissIp(ip) {
       dismissed.add(ip);
+      saveDismissed();
       ips = ips.filter(r => r.ip !== ip);
       if (selectedIp === ip) selectedIp = null;
       log(`[LIST] Узел ${ip} удалён из списка.`, 'info');
@@ -697,6 +720,7 @@
           latency: latency != null ? Math.round(latency) : null,
         };
         dismissed.delete(ip);
+        saveDismissed();
         ips = [rec, ...ips.filter(x => x.ip !== ip)].sort((a, b) => {
           if (a.status !== b.status) return a.status === 'Up' ? -1 : 1;
           return (a.latency ?? 1e9) - (b.latency ?? 1e9);
@@ -834,17 +858,20 @@
       send('openUrl', { url: GITHUB_URL }).catch(() => {});
     }
 
-    /* —— Update banner (Wave 4 host wiring) —— */
+    /* —— Update banner (host: checkUpdate / getState.update / updateAvailable) —— */
     function applyUpdateInfo(info) {
       if (!info || !info.hasUpdate) {
         updateInfo = null;
         document.getElementById('updateBanner').hidden = true;
         return;
       }
+      // Host fields: latest, canSilent, releaseUrl (camelCase JSON)
+      const ver = info.latest || info.version || info.latestVersion || '';
       updateInfo = {
         hasUpdate: true,
-        version: info.version || info.latestVersion || '',
-        canSilent: !!info.canSilent,
+        version: ver,
+        canSilent: !!(info.canSilent),
+        portable: !!(info.portable),
         releaseUrl: info.releaseUrl || info.url || RELEASES_URL,
         notes: info.notes || '',
       };
@@ -853,8 +880,14 @@
       title.textContent = updateInfo.version
         ? `Доступна версия ${updateInfo.version}`
         : 'Доступна новая версия';
-      sub.textContent = updateInfo.notes ? ' · ' + updateInfo.notes : '';
+      let subParts = [];
+      if (updateInfo.canSilent) subParts.push('тихая установка');
+      else subParts.push('скачайте Setup с Releases');
+      if (updateInfo.notes) subParts.push(updateInfo.notes);
+      sub.textContent = subParts.length ? ' · ' + subParts.join(' · ') : '';
       document.getElementById('updateBanner').hidden = false;
+      const installBtn = document.getElementById('btnInstallUpdate');
+      if (installBtn) installBtn.textContent = updateInfo.canSilent ? 'Установить' : 'Открыть Releases';
     }
 
     function dismissUpdateBanner() {
@@ -869,22 +902,29 @@
           toast('Проверка обновлений недоступна в превью', 'info');
           return;
         }
-        if (r && (r.hasUpdate || r.update?.hasUpdate)) {
-          const info = r.hasUpdate ? r : r.update;
-          applyUpdateInfo({ ...info, hasUpdate: true });
-          toast(info.version ? `Доступна версия ${info.version}` : 'Доступно обновление', 'success');
-        } else if (r && r.update) {
+        if (r && r.success === false && r.error && !r.hasUpdate) {
+          applyUpdateInfo(null);
+          toast(r.error || 'Не удалось проверить обновления', 'error');
+          log('[SYSTEM] checkUpdate: ' + (r.error || r.errorCode || 'fail'), 'warn');
+          return;
+        }
+        if (r && r.hasUpdate) {
+          applyUpdateInfo(r);
+          toast(r.latest ? `Доступна версия ${r.latest}` : 'Доступно обновление', 'success');
+          log('[SYSTEM] Найдено обновление: ' + (r.latest || ''), 'success');
+        } else if (r && r.update && r.update.hasUpdate) {
           applyUpdateInfo(r.update);
-          if (!r.update.hasUpdate) toast('У вас актуальная версия', 'info');
+          toast(r.update.latest ? `Доступна версия ${r.update.latest}` : 'Доступно обновление', 'success');
         } else {
           applyUpdateInfo(null);
           toast('У вас актуальная версия', 'info');
           log('[SYSTEM] Обновлений нет.', 'success');
         }
+        if (r && r.state && r.state.version)
+          document.getElementById('verLine').textContent = 'v' + r.state.version + ' · GeoHide Linker';
       } catch (e) {
-        // Host may not implement yet (Wave 4) — keep quiet-ish
         if (e.message === 'timeout') {
-          toast('Хост не ответил на checkUpdate (Wave 4)', 'warning');
+          toast('Проверка обновлений заняла слишком много времени', 'warning');
         } else {
           toast('Не удалось проверить обновления', 'error');
         }
@@ -894,19 +934,37 @@
 
     async function startUpdate() {
       if (!updateInfo?.hasUpdate) return;
-      if (updateInfo.canSilent) {
-        log('[SYSTEM] Запуск установки обновления…', 'info');
-        try {
-          await send('startUpdate');
-          toast('Установка обновления запущена', 'info');
-        } catch (e) {
-          toast('Не удалось запустить обновление', 'error');
-          log('[SYSTEM] startUpdate: ' + (e.message || e), 'error');
+      log('[SYSTEM] Запуск обновления…', 'info');
+      try {
+        const r = await send('startUpdate');
+        if (r && r.preview) {
+          toast('Обновление недоступно в превью', 'info');
+          return;
         }
-      } else {
-        const url = updateInfo.releaseUrl || RELEASES_URL;
-        log('[SYSTEM] Открываю страницу релизов…', 'info');
-        send('openUrl', { url }).catch(() => {});
+        if (r && r.exiting) {
+          toast('Установщик запущен — приложение закроется…', 'info');
+          return;
+        }
+        if (r && r.needsBrowser) {
+          const url = r.releaseUrl || updateInfo.releaseUrl || RELEASES_URL;
+          toast(r.message || 'Откройте страницу Releases', 'info');
+          try { await send('openUrl', { url }); } catch (e2) {
+            try { await send('openReleases'); } catch (e3) {}
+          }
+          return;
+        }
+        if (r && r.success === false) {
+          toast(r.error || r.message || 'Не удалось обновить', 'error');
+          log('[SYSTEM] startUpdate: ' + (r.error || r.message), 'error');
+          if (r.releaseUrl) {
+            try { await send('openUrl', { url: r.releaseUrl }); } catch (e2) {}
+          }
+          return;
+        }
+        toast('Обновление запущено', 'info');
+      } catch (e) {
+        toast('Не удалось запустить обновление', 'error');
+        log('[SYSTEM] startUpdate: ' + (e.message || e), 'error');
       }
     }
 
@@ -945,7 +1003,8 @@
       try { await send('uiReady'); } catch (e) {}
       try {
         const s = await send('getState');
-        if (s.version) document.getElementById('verLine').textContent = 'v' + s.version + ' · GeoHide Linker';
+        if (s.version || s.appVersion)
+          document.getElementById('verLine').textContent = 'v' + (s.version || s.appVersion) + ' · GeoHide Linker';
         hostsActive = s.status;
         if (s.hostsPath) {
           document.getElementById('hostsMeta').textContent =
@@ -953,12 +1012,20 @@
             (s.backupDir ? ' · бэкапы: ' + s.backupDir : '');
         }
         setAutostartUi(!!s.autostart);
-        // Wave 4: host may embed update state in getState
         if (s.update) applyUpdateInfo(s.update);
         renderStatus();
       } catch (e) {}
       await refreshStatus();
       await fetchIps();
+      // Background host check lands ~4s after start — poll state for banner
+      [5000, 12000].forEach(ms => {
+        setTimeout(async () => {
+          try {
+            const s = await send('getState');
+            if (s && s.update) applyUpdateInfo(s.update);
+          } catch (e) {}
+        }, ms);
+      });
     })();
   </script>
 </body>
