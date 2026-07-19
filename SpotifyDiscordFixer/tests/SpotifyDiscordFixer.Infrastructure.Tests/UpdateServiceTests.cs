@@ -122,18 +122,19 @@ public class UpdateServiceTests
     }
 
     [Fact]
-    public void ClassifyError_never_uses_raw_russian_socket_text()
+    public void ClassifyError_uses_stable_russian_not_raw_socket_text()
     {
         var (code, msg) = UpdateService.ClassifyError(
             new HttpRequestException("Попытка установить соединение была безуспешной",
                 new System.Net.Sockets.SocketException(10060)));
         code.Should().Be(UpdateService.ErrorCodes.Network);
-        msg.Should().NotContain("Попытка");
+        // Must not leak OS/socket exception text
+        msg.Should().NotContain("Попытка установить соединение");
         msg.Should().Contain("GitHub");
 
         var (c2, m2) = UpdateService.ClassifyError(new TimeoutException());
         c2.Should().Be(UpdateService.ErrorCodes.Timeout);
-        m2.Should().Contain("timed out");
+        m2.Should().Contain("время ожидания");
 
         var (c3, m3) = UpdateService.ClassifyError(new InvalidOperationException("boom"));
         c3.Should().Be(UpdateService.ErrorCodes.Network);

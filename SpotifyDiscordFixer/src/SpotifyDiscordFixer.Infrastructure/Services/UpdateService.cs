@@ -132,16 +132,16 @@ public sealed class UpdateService
         CancellationToken cancellationToken = default)
     {
         if (check is null || !check.HasUpdate)
-            return OperationResult.Ok("Already up to date.");
+            return OperationResult.Ok("Уже установлена актуальная версия.");
 
         if (string.IsNullOrWhiteSpace(check.DownloadUrl))
             return OperationResult.Fail(
-                "No Setup asset for this architecture.",
+                "Нет Setup для этой архитектуры.",
                 detail: check.ReleaseUrl);
 
         if (check.IsPortable || !check.CanSilentInstall)
             return OperationResult.Fail(
-                "Silent update requires Program Files install. Open Releases to download Setup.",
+                "Тихая установка доступна только из Program Files. Откройте Releases и скачайте Setup.",
                 detail: check.ReleaseUrl);
 
         // Always download from the canonical Setup URL for this version+RID.
@@ -149,13 +149,13 @@ public sealed class UpdateService
         string rid = GetCurrentRid();
         string version = check.LatestVersion ?? "";
         if (!SemVer.TryParse(version, out _))
-            return OperationResult.Fail("Invalid update version.");
+            return OperationResult.Fail("Некорректная версия обновления.");
 
         string downloadUrl = BuildSetupDownloadUrl(version, rid);
         string fileName = BuildSetupAssetName(version, rid);
 
         if (!IsAllowedDownloadUrl(downloadUrl))
-            return OperationResult.Fail("Download URL rejected (not official repo).");
+            return OperationResult.Fail("URL загрузки отклонён (не официальный репозиторий).");
 
         try
         {
@@ -173,11 +173,11 @@ public sealed class UpdateService
             // Final URL after redirects must still be allowlisted (open redirect defense).
             string? finalUrl = resp.RequestMessage?.RequestUri?.ToString();
             if (!string.IsNullOrEmpty(finalUrl) && !IsAllowedDownloadUrl(finalUrl))
-                return OperationResult.Fail("Download redirect rejected (not official CDN).");
+                return OperationResult.Fail("Редирект загрузки отклонён (не официальный CDN).");
 
             long? total = resp.Content.Headers.ContentLength;
             if (total is > MaxSetupBytes)
-                return OperationResult.Fail("Setup package too large.");
+                return OperationResult.Fail("Пакет Setup слишком большой.");
 
             long readTotal = 0;
             bool sizeExceeded = false;
@@ -211,8 +211,8 @@ public sealed class UpdateService
             {
                 try { File.Delete(dest); } catch { /* ignore */ }
                 return OperationResult.Fail(readTotal < 64 && !sizeExceeded
-                    ? "Downloaded file is too small to be a Setup."
-                    : "Setup package exceeded size limit.");
+                    ? "Скачанный файл слишком мал, чтобы быть Setup."
+                    : "Превышен лимит размера Setup.");
             }
 
             progress?.Report(1);
@@ -221,7 +221,7 @@ public sealed class UpdateService
             if (!LooksLikePeExecutable(dest))
             {
                 try { File.Delete(dest); } catch { /* ignore */ }
-                return OperationResult.Fail("Downloaded file is not a valid Windows executable.");
+                return OperationResult.Fail("Скачанный файл не является корректным Windows-исполняемым.");
             }
 
             string args =
@@ -235,7 +235,7 @@ public sealed class UpdateService
             Process.Start(psi);
 
             await Task.Delay(800, cancellationToken).ConfigureAwait(false);
-            return OperationResult.Ok("Updater started; application will exit.");
+            return OperationResult.Ok("Установщик запущен; приложение закроется.");
         }
         catch (Exception ex)
         {
@@ -375,7 +375,7 @@ public sealed class UpdateService
     public static (string Code, string Message) ClassifyError(Exception? ex)
     {
         if (ex is null)
-            return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+            return (ErrorCodes.Network, "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.");
 
         Exception root = ex;
         while (root.InnerException is not null
@@ -385,7 +385,7 @@ public sealed class UpdateService
 
         if (ex is TaskCanceledException or OperationCanceledException or TimeoutException
             || root is TimeoutException or TaskCanceledException or OperationCanceledException)
-            return (ErrorCodes.Timeout, "Update check timed out. Try again or open Releases.");
+            return (ErrorCodes.Timeout, "Проверка обновлений превысила время ожидания. Попробуйте снова или откройте Releases.");
 
         if (root is SocketException
             || root is IOException
@@ -393,9 +393,9 @@ public sealed class UpdateService
             || root is HttpRequestException
             || root.GetType().Name.Contains("Authentication", StringComparison.Ordinal)
             || root.GetType().Name.Contains("Security", StringComparison.Ordinal))
-            return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+            return (ErrorCodes.Network, "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.");
 
-        return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+        return (ErrorCodes.Network, "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.");
     }
 
     private static bool IsCallerCancel(Exception ex, CancellationToken caller)

@@ -1,60 +1,61 @@
-# Changelog
+# История изменений
 
-All notable changes to **Spotify Discord Fixer** are documented here.
+Все заметные изменения **Spotify Discord Fixer** фиксируются здесь.
 
-Format based on [Keep a Changelog](https://keepachangelog.com/).  
-Versioning follows [Semantic Versioning](https://semver.org/).
+Формат близок к [Keep a Changelog](https://keepachangelog.com/).  
+Версии — [Semantic Versioning](https://semver.org/).
 
 ---
 
 ## [Unreleased]
 
-### Added
-- *(none yet)*
+### Добавлено
+- *(пока пусто)*
 
-### Fixed
-- *(none yet)*
+### Исправлено
+- *(пока пусто)*
 
 ---
 
 ## [2.0.0] — 2026-07-19
 
-**Major rewrite:** Electron (~391 MB) → **.NET 8 + Photino/WebView2** (framework-dependent Setup ~few MB). Windows only.
+**Крупный rewrite:** Electron (~391 МБ) → **.NET 8 + Photino/WebView2** (Setup ~несколько МБ). Только Windows.
 
-### Added
-- Solution layout: Core / Infrastructure / Ui (AntiLag Next style).
-- Pure hosts-block engine (markers `#spotify-discord-hosts` … `#end-spotify-discord-hosts` unchanged for upgrade path).
-- GeoHide DNS + fallback IPs, TCP :443 latency probe.
-- Apply / remove hosts with backup to Downloads, conflict strip on apply, DNS flush, elevated write when needed.
-- Photino UI: IP list, custom IP, preview, logs, consent, theme, tray, single-instance, autostart.
-- In-app auto-update from GitHub Releases (allowlisted Setup URL, PE check, silent when installed under Program Files).
-- Multi-arch Setup + portable zips: win-x64, win-x86, win-arm64.
+### Добавлено
+- Структура решения: Core / Infrastructure / Ui (по образцу AntiLag Next).
+- Чистый движок блока hosts (маркеры `#spotify-discord-hosts` … `#end-spotify-discord-hosts` **без смены** — путь обновления с 1.x).
+- DNS GeoHide + резервные IP, проба TCP :443.
+- Применить / сбросить hosts: бэкап в Загрузки, снятие конфликтов при apply, flush DNS, elev при необходимости.
+- UI Photino: список IP, свой IP, превью, лог, согласие, тема, трей, single-instance, автозапуск.
+- Автообновление с GitHub Releases (allowlist Setup URL, проверка PE, silent из Program Files).
+- Multi-arch Setup + portable zip: win-x64, win-x86, win-arm64.
+- Полировка: banner обновлений, отмена UAC, dismiss IP в localStorage.
 
-### Changed
-- Product name: **Spotify Discord Fixer** (was “Hosts Fixer” in some artifact names).
-- Setup assets: `Spotify-Discord-Fixer-Setup-{version}-{rid}.exe`.
-- Platform scope: **Windows only** (macOS/Linux remain on legacy Electron 1.x builds if published).
+### Изменено
+- Имя продукта: **Spotify Discord Fixer**.
+- Имена Setup: `Spotify-Discord-Fixer-Setup-{version}-{rid}.exe`.
+- Платформы: **только Windows** (macOS/Linux — legacy Electron 1.x на старых тегах).
 
-### Removed
-- Electron, React, Node ship tree from the 2.0 binary (source may still archive legacy folders).
+### Удалено
+- Electron / React / Node из поставляемого бинарника 2.0.
 
-### Notes
-- Requires [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
-- Administrator (UAC) for hosts write.
-
----
-
-## Version map
-
-| Version | Date | Highlights |
-|---------|------|------------|
-| **2.0.0** | 2026-07-19 | Photino rewrite, light Setup, auto-update |
-| **1.1.0** | 2026-07-15 | Electron: Downloads backup, conflict strip |
-| **1.0.0** | 2026 | First Electron public release |
+### Примечания
+- Нужны [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) и [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
+- Для записи hosts — права администратора (UAC).
 
 ---
 
-## Links
+## Карта версий
 
-- Repository: https://github.com/swd3k/spotify-discord-fixer  
-- Releases: https://github.com/swd3k/spotify-discord-fixer/releases  
+| Версия | Дата | Кратко |
+|--------|------|--------|
+| **2.0.0** | 2026-07-19 | Photino rewrite, лёгкий Setup, автообновление |
+| **1.1.0** | 2026-07-15 | Electron: бэкап в Загрузки, снятие конфликтов |
+| **1.0.0** | 2026 | Первый публичный релиз Electron |
+
+---
+
+## Ссылки
+
+- Репозиторий: https://github.com/swd3k/spotify-discord-fixer  
+- Релизы: https://github.com/swd3k/spotify-discord-fixer/releases  

@@ -15,7 +15,7 @@
           <img src="logo.png" alt="Spotify Discord Fixer" />
           <div>
             <h1>Spotify Discord Fixer</h1>
-            <p id="verLine">v2.0.0 · GeoHide Linker</p>
+            <p id="verLine">v2.0.0 · прокси GeoHide</p>
           </div>
         </div>
         <div class="hdr-actions">
@@ -921,7 +921,7 @@
           log('[SYSTEM] Обновлений нет.', 'success');
         }
         if (r && r.state && r.state.version)
-          document.getElementById('verLine').textContent = 'v' + r.state.version + ' · GeoHide Linker';
+          document.getElementById('verLine').textContent = 'v' + r.state.version + ' · прокси GeoHide';
       } catch (e) {
         if (e.message === 'timeout') {
           toast('Проверка обновлений заняла слишком много времени', 'warning');
@@ -1004,7 +1004,7 @@
       try {
         const s = await send('getState');
         if (s.version || s.appVersion)
-          document.getElementById('verLine').textContent = 'v' + (s.version || s.appVersion) + ' · GeoHide Linker';
+          document.getElementById('verLine').textContent = 'v' + (s.version || s.appVersion) + ' · прокси GeoHide';
         hostsActive = s.status;
         if (s.hostsPath) {
           document.getElementById('hostsMeta').textContent =

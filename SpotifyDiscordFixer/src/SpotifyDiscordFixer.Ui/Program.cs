@@ -205,7 +205,7 @@ internal static class Program
             string? cmd = root.TryGetProperty("cmd", out var c) ? c.GetString() : null;
             if (string.IsNullOrEmpty(cmd))
             {
-                Reply(id, new { error = "missing cmd" });
+                Reply(id, new { error = "нет команды" });
                 return;
             }
 
@@ -237,13 +237,13 @@ internal static class Program
                 "openReleases" => HandleOpenReleases(),
                 "uiReady" => new { ok = true, version = _update?.LocalVersion ?? "2.0.0" },
                 "hideToTray" => HandleHideToTray(),
-                _ => new { error = "unknown cmd", cmd },
+                _ => new { error = "неизвестная команда", cmd },
             };
             Reply(id, payload);
         }
         catch (Exception ex)
         {
-            Reply(id, new { error = "handler error", detail = ex.Message });
+            Reply(id, new { error = "ошибка обработчика", detail = ex.Message });
         }
     }
 
@@ -303,7 +303,7 @@ internal static class Program
         {
             if (Interlocked.CompareExchange(ref _heavyOp, 1, 0) != 0)
             {
-                Reply(id, new { success = false, busy = true, message = "Операция уже выполняется" });
+                Reply(id, new { success = false, busy = true, message = "Операция уже выполняется." });
                 return;
             }
         }
@@ -328,7 +328,7 @@ internal static class Program
                     "remove" => HandleRemove(),
                     "checkUpdate" => await HandleCheckUpdateAsync().ConfigureAwait(false),
                     "startUpdate" => await HandleStartUpdateAsync().ConfigureAwait(false),
-                    _ => new { error = "unknown async" },
+                    _ => new { error = "неизвестная асинхронная команда" },
                 };
                 ReplyOnUi(id, payload);
             }
@@ -336,11 +336,11 @@ internal static class Program
             {
                 if (cmd is "checkUpdate" or "startUpdate")
                 {
-                    var (code, en) = UpdateService.ClassifyError(ex);
+                    var (code, msg) = UpdateService.ClassifyError(ex);
                     ReplyOnUi(id, new
                     {
                         success = false,
-                        error = en,
+                        error = msg,
                         errorCode = code,
                         local = _update?.LocalVersion ?? "2.0.0",
                     });
