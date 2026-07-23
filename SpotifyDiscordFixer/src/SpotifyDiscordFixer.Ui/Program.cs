@@ -235,7 +235,7 @@ internal static class Program
                 "getState" => BuildState(),
                 "openUrl" => HandleOpenUrl(root),
                 "openReleases" => HandleOpenReleases(),
-                "uiReady" => new { ok = true, version = _update?.LocalVersion ?? "2.0.1" },
+                "uiReady" => new { ok = true, version = _update?.LocalVersion ?? "2.0.2" },
                 "hideToTray" => HandleHideToTray(),
                 _ => new { error = "неизвестная команда", cmd },
             };
@@ -342,7 +342,7 @@ internal static class Program
                         success = false,
                         error = msg,
                         errorCode = code,
-                        local = _update?.LocalVersion ?? "2.0.1",
+                        local = _update?.LocalVersion ?? "2.0.2",
                     });
                 }
                 else
@@ -550,8 +550,8 @@ internal static class Program
     {
         return new
         {
-            version = _update?.LocalVersion ?? "2.0.1",
-            appVersion = _update?.LocalVersion ?? "2.0.1",
+            version = _update?.LocalVersion ?? "2.0.2",
+            appVersion = _update?.LocalVersion ?? "2.0.2",
             status = _hosts!.GetStatus(),
             activeBlock = MapBlock(_hosts.GetActiveBlock()),
             hostsPath = _hosts.HostsPath,
