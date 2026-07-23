@@ -1,6 +1,6 @@
 # Spotify Discord Fixer
 
-**v2.0.1** · лёгкий Windows-клиент для статуса Discord «Сейчас слушает Spotify».
+**v2.0.2** · лёгкий Windows-клиент для статуса Discord «Сейчас слушает Spotify».
 
 Основная документация — в корне репозитория:
 
@@ -14,7 +14,7 @@
 cd SpotifyDiscordFixer
 dotnet test -c Release
 dotnet run --project src\SpotifyDiscordFixer.Ui -c Release
-.\scripts\build-installer.ps1 -Version 2.0.1 -PublishFirst
+.\scripts\build-installer.ps1 -Version 2.0.2 -PublishFirst
 ```
 
 | Проект | Роль |
