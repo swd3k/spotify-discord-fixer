@@ -193,12 +193,30 @@ jobs:
           cat SHA256SUMS.txt
           ls -la
 
+      - name: Build release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart("v", "V")
+          $text = Get-Content "CHANGELOG.md" -Raw -Encoding UTF8
+          $pattern = "(?s)## \[$([regex]::Escape($ver))\][^\n]*\n(.*?)(?=\n## \[|\z)"
+          $m = [regex]::Match($text, $pattern)
+          if (-not $m.Success) { throw "No CHANGELOG section for version $ver" }
+          $body = $m.Groups[1].Value.Trim()
+          $body = [regex]::Replace($body, "\r?\n---\s*$", "").Trim()
+          $header = "# Spotify Discord Fixer $tag`n`n"
+          $footer = "`n`n---`n`n**Требования:** Windows 10/11 · [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) · [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) · **права администратора** для hosts`n`nПолная история: [CHANGELOG.md](https://github.com/swd3k/spotify-discord-fixer/blob/main/CHANGELOG.md) · [README](https://github.com/swd3k/spotify-discord-fixer#readme)`n"
+          $notes = $header + $body + $footer
+          [System.IO.File]::WriteAllText("release_body.md", $notes, [System.Text.UTF8Encoding]::new($false))
+          Write-Host "Wrote release_body.md for $tag"
+
       # Only attach files if release does not already exist with assets (manual upload / re-tag).
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
-          body_path: CHANGELOG.md
+          body_path: release_body.md
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
