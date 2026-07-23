@@ -215,7 +215,9 @@ jobs:
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*
+          files: |
+            release/*.exe
+            release/*.zip
           body_path: release_body.md
           draft: false
           prerelease: false
