@@ -188,8 +188,10 @@ jobs:
       - name: SHA256
         run: |
           cd release
-          sha256sum * > SHA256SUMS.txt || shasum -a 256 * > SHA256SUMS.txt
+          # Exclude directory 'installers' from hashing
+          find . -type f -not -path '*/installers/*' -print0 | xargs -0 sha256sum 2>/dev/null | sed 's|  \./|  |' > SHA256SUMS.txt || true
           cat SHA256SUMS.txt
+          ls -la
 
       # Only attach files if release does not already exist with assets (manual upload / re-tag).
       - name: GitHub Release
