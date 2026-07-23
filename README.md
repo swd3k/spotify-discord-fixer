@@ -94,15 +94,15 @@
 ## 📥 Скачать
 
 Сборки — на **[Releases](https://github.com/swd3k/spotify-discord-fixer/releases)**.  
-Актуальная версия: **2.0.1**.
+Актуальная версия: **2.0.2**.
 
 ### Setup (рекомендуется)
 
 | Пакет | Архитектура | Примечание |
 |-------|-------------|------------|
-| [`Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe`](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x64.exe) | Intel / AMD 64-bit | **Большинству** |
-| [`Spotify-Discord-Fixer-Setup-2.0.1-win-x86.exe`](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-x86.exe) | 32-bit | |
-| [`Spotify-Discord-Fixer-Setup-2.0.1-win-arm64.exe`](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.1-win-arm64.exe) | ARM64 | |
+| [`Spotify-Discord-Fixer-Setup-2.0.2-win-x64.exe`](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.2-win-x64.exe) | Intel / AMD 64-bit | **Большинству** |
+| [`Spotify-Discord-Fixer-Setup-2.0.2-win-x86.exe`](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.2-win-x86.exe) | 32-bit | |
+| [`Spotify-Discord-Fixer-Setup-2.0.2-win-arm64.exe`](https://github.com/swd3k/spotify-discord-fixer/releases/latest/download/Spotify-Discord-Fixer-Setup-2.0.2-win-arm64.exe) | ARM64 | |
 
 1. Запустите **Setup** `.exe` (UAC).  
 2. Откройте приложение → **Обновить** список узлов.  
@@ -158,7 +158,7 @@ dotnet run --project src\SpotifyDiscordFixer.Ui -c Release
 
 ```powershell
 # publish + Inno Setup (нужен Inno Setup 6)
-.\scripts\build-installer.ps1 -Version 2.0.1 -PublishFirst
+.\scripts\build-installer.ps1 -Version 2.0.2 -PublishFirst
 ```
 
 | Слой | Назначение |
